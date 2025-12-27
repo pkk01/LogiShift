@@ -17,6 +17,7 @@ class User(Document):
 class Delivery(Document):
     user_id = StringField(required=True)  # Reference to User
     status = StringField(default='Pending')  # Pending, In Progress, Delivered
+    driver_id = StringField()  # Reference to User with role=driver
     pickup_address = StringField(required=True)
     delivery_address = StringField(required=True)
     weight = StringField()  # e.g., "5kg"

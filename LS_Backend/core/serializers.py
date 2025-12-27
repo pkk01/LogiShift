@@ -27,6 +27,7 @@ class DeliverySerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
     user_id = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
+    driver_id = serializers.CharField(read_only=True)
     pickup_address = serializers.CharField(required=True)
     delivery_address = serializers.CharField(required=True)
     weight = serializers.CharField(required=False)
@@ -52,6 +53,10 @@ class DeliveryEditSerializer(serializers.Serializer):
 
 class DeliveryCancelSerializer(serializers.Serializer):
     cancellation_reason = serializers.CharField(required=False)
+
+
+class DeliveryDriverAssignSerializer(serializers.Serializer):
+    driver_id = serializers.CharField(required=True)
 
 
 class PaymentSerializer(serializers.Serializer):

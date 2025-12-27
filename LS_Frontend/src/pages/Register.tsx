@@ -1,9 +1,15 @@
 import axios from 'axios'
-import { UserPlus } from 'lucide-react'
+import { Phone, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Register() {
-  const [form, setForm] = useState({ email: '', password: '', name: '' })
+  const [form, setForm] = useState({ 
+    email: '', 
+    password: '', 
+    name: '',
+    contact_number: '',
+    address: ''
+  })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -13,14 +19,15 @@ export default function Register() {
     try {
       await axios.post('/api/register/', form)
       setSuccess('Registration successful. Please login.')
+      setForm({ email: '', password: '', name: '', contact_number: '', address: '' })
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Registration failed')
     }
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="max-w-md w-full bg-surface rounded-xl shadow-xl p-8 border border-gray-100">
+    <div className="min-h-[80vh] flex items-center justify-center py-8">
+      <div className="max-w-md w-full bg-surface rounded-2xl shadow-xl p-8 border-2 border-gray-100">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
             <UserPlus className="w-8 h-8 text-primary" />
@@ -29,20 +36,20 @@ export default function Register() {
           <p className="text-textSecondary mt-2">Join us to start managing your deliveries</p>
         </div>
         {error && (
-          <div className="mb-6 p-4 bg-error/10 border border-error/20 rounded-lg text-error text-sm">
+          <div className="mb-6 p-4 bg-error/10 border border-error/20 rounded-lg text-error text-sm font-medium">
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg text-success text-sm">
+          <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg text-success text-sm font-medium">
             {success}
           </div>
         )}
         <form className="space-y-5" onSubmit={onSubmit}>
           <div>
-            <label className="block text-sm font-medium text-textPrimary mb-2">Full Name</label>
+            <label className="block text-sm font-semibold text-textPrimary mb-2">Full Name</label>
             <input
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               placeholder="John Doe"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -50,9 +57,9 @@ export default function Register() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-textPrimary mb-2">Email Address</label>
+            <label className="block text-sm font-semibold text-textPrimary mb-2">Email Address</label>
             <input
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               type="email"
               placeholder="your@email.com"
               value={form.email}
@@ -61,9 +68,31 @@ export default function Register() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-textPrimary mb-2">Password</label>
+            <label className="flex items-center gap-2 text-sm font-semibold text-textPrimary mb-2">
+              <Phone className="w-4 h-4" /> Phone Number
+            </label>
             <input
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+              type="tel"
+              placeholder="+1 (555) 123-4567"
+              value={form.contact_number}
+              onChange={(e) => setForm({ ...form, contact_number: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-textPrimary mb-2">Address</label>
+            <input
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+              placeholder="123 Main Street, City, State"
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-textPrimary mb-2">Password</label>
+            <input
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
               type="password"
               placeholder="••••••••"
               value={form.password}
@@ -71,13 +100,13 @@ export default function Register() {
               required
             />
           </div>
-          <button className="w-full bg-primary text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-all font-medium shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40">
+          <button className="w-full bg-primary text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-all font-semibold shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40">
             Create Account
           </button>
         </form>
         <div className="mt-6 text-center text-sm text-textSecondary">
           Already have an account?{' '}
-          <a href="/login" className="text-primary hover:text-blue-600 font-medium transition-colors">
+          <a href="/login" className="text-primary hover:text-blue-600 font-semibold transition-colors">
             Sign in
           </a>
         </div>

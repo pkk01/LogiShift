@@ -1,10 +1,13 @@
-import { BadgeCheck, History, LogOut, Truck } from 'lucide-react'
+import { BadgeCheck, History, LogOut, Settings, Truck, User } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 export default function Navbar() {
   const navigate = useNavigate()
   const token = localStorage.getItem('access_token')
   const role = localStorage.getItem('role')
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+
   const logout = () => {
     localStorage.clear()
     navigate('/login')
@@ -25,7 +28,7 @@ export default function Navbar() {
 
           {/* Main Navigation */}
           <div className="flex items-center gap-1">
-            {token && role !== 'admin' && (
+            {token && role === 'user' && (
               <>
                 <Link
                   to="/deliveries"
@@ -44,6 +47,16 @@ export default function Navbar() {
                   className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-blue-600 rounded-lg transition-all shadow-md shadow-primary/20"
                 >
                   New Delivery
+                </Link>
+              </>
+            )}
+            {token && role === 'driver' && (
+              <>
+                <Link
+                  to="/driver/dashboard"
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all shadow-md shadow-green-600/20 flex items-center gap-1"
+                >
+                  <Truck className="w-4 h-4" /> My Deliveries
                 </Link>
               </>
             )}
@@ -89,12 +102,69 @@ export default function Navbar() {
                 </Link>
               </>
             ) : (
-              <button
-                onClick={logout}
-                className="px-4 py-2 text-sm font-medium text-error hover:bg-error/10 rounded-lg transition-all flex items-center gap-1"
-              >
-                <LogOut className="w-4 h-4" /> Logout
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-blue-600 rounded-lg transition-all shadow-md shadow-primary/20 flex items-center gap-2"
+                >
+                  <User className="w-4 h-4" /> Profile
+                </button>
+                {showProfileMenu && (
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-surface rounded-xl shadow-xl border-2 border-gray-100 z-50 overflow-hidden">
+                    {role === 'admin' ? (
+                      <>
+                        <Link
+                          to="/profile"
+                          className="flex items-center gap-3 px-4 py-3 text-textPrimary hover:bg-primary/5 transition-colors border-b border-gray-100"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          <User className="w-4 h-4 text-primary" />
+                          <span className="font-medium">My Profile</span>
+                        </Link>
+                        <Link
+                          to="/admin/users"
+                          className="flex items-center gap-3 px-4 py-3 text-textPrimary hover:bg-primary/5 transition-colors border-b border-gray-100"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          <Settings className="w-4 h-4 text-primary" />
+                          <span className="font-medium">Manage Users</span>
+                        </Link>
+                        <button
+                          onClick={() => {
+                            logout()
+                            setShowProfileMenu(false)
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-error hover:bg-error/5 transition-colors font-medium"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Logout
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          to="/profile"
+                          className="flex items-center gap-3 px-4 py-3 text-textPrimary hover:bg-primary/5 transition-colors border-b border-gray-100"
+                          onClick={() => setShowProfileMenu(false)}
+                        >
+                          <User className="w-4 h-4 text-primary" />
+                          <span className="font-medium">My Profile</span>
+                        </Link>
+                        <button
+                          onClick={() => {
+                            logout()
+                            setShowProfileMenu(false)
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-error hover:bg-error/5 transition-colors font-medium"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          Logout
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

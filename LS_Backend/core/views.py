@@ -8,7 +8,7 @@ from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
     DeliverySerializer, DeliveryStatusUpdateSerializer,
     PaymentSerializer, ReviewSerializer, DeliveryEditSerializer,
-    DeliveryCancelSerializer
+    DeliveryCancelSerializer, DeliveryDriverAssignSerializer
 )
 import bcrypt
 import uuid
@@ -84,6 +84,7 @@ class LoginView(APIView):
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
+    
     def get(self, request):
         user_id = getattr(request.user, 'id', None)
         user = User.objects(id=user_id).first()
@@ -97,6 +98,32 @@ class ProfileView(APIView):
             "address": user.address,
             "contact_number": user.contact_number,
             "created_at": user.created_at
+        }, status=status.HTTP_200_OK)
+    
+    def put(self, request):
+        user_id = getattr(request.user, 'id', None)
+        user = User.objects(id=user_id).first()
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Update user fields
+        user.name = request.data.get('name', user.name)
+        user.email = request.data.get('email', user.email)
+        user.contact_number = request.data.get('contact_number', user.contact_number)
+        user.address = request.data.get('address', user.address)
+        user.updated_at = datetime.utcnow()
+        user.save()
+        
+        return Response({
+            "message": "Profile updated successfully",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.name,
+                "role": user.role,
+                "address": user.address,
+                "contact_number": user.contact_number
+            }
         }, status=status.HTTP_200_OK)
     def put(self, request):
         user_id = getattr(request.user, 'id', None)
@@ -135,18 +162,24 @@ class DeliveryListCreateView(APIView):
             query = query.filter(status=status_filter)
         
         deliveries = query.order_by('-created_at')
-        data = [{
-            "id": str(d.id),
-            "status": d.status,
-            "pickup_address": d.pickup_address,
-            "delivery_address": d.delivery_address,
-            "weight": d.weight,
-            "package_type": d.package_type,
-            "pickup_date": d.pickup_date,
-            "delivery_date": d.delivery_date,
-            "tracking_number": d.tracking_number,
-            "created_at": d.created_at
-        } for d in deliveries]
+        data = []
+        for d in deliveries:
+            driver = User.objects(id=d.driver_id).first() if d.driver_id else None
+            data.append({
+                "id": str(d.id),
+                "status": d.status,
+                "driver_id": d.driver_id,
+                "driver_name": driver.name if driver else None,
+                "driver_contact": driver.contact_number if driver else None,
+                "pickup_address": d.pickup_address,
+                "delivery_address": d.delivery_address,
+                "weight": d.weight,
+                "package_type": d.package_type,
+                "pickup_date": d.pickup_date,
+                "delivery_date": d.delivery_date,
+                "tracking_number": d.tracking_number,
+                "created_at": d.created_at
+            })
         return Response(data, status=status.HTTP_200_OK)
     def post(self, request):
         serializer = DeliverySerializer(data=request.data)
@@ -190,10 +223,14 @@ class DeliveryDetailView(APIView):
             return Response({"error": "Delivery not found"}, status=status.HTTP_404_NOT_FOUND)
         if delivery.user_id != user_id and user_role != 'admin':
             return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
+        driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
         return Response({
             "id": str(delivery.id),
             "user_id": delivery.user_id,
             "status": delivery.status,
+            "driver_id": delivery.driver_id,
+            "driver_name": driver.name if driver else None,
+            "driver_contact": driver.contact_number if driver else None,
             "pickup_address": delivery.pickup_address,
             "delivery_address": delivery.delivery_address,
             "weight": delivery.weight,
@@ -323,9 +360,13 @@ class TrackDeliveryView(APIView):
         delivery = Delivery.objects(tracking_number=tracking_number).first()
         if not delivery:
             return Response({"error": "Tracking number not found"}, status=status.HTTP_404_NOT_FOUND)
+        driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
         return Response({
             "tracking_number": delivery.tracking_number,
             "status": delivery.status,
+            "driver_id": delivery.driver_id,
+            "driver_name": driver.name if driver else None,
+            "driver_contact": driver.contact_number if driver else None,
             "pickup_address": delivery.pickup_address,
             "delivery_address": delivery.delivery_address,
             "package_type": delivery.package_type,
@@ -431,6 +472,59 @@ class AdminUsersView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+class AdminUserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, user_id):
+        user_role = getattr(request.user, 'role', 'user')
+        if user_role != 'admin':
+            return Response({"error": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+        
+        user = User.objects(id=user_id).first()
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            "id": str(user.id),
+            "email": user.email,
+            "name": user.name,
+            "role": user.role,
+            "address": user.address,
+            "contact_number": user.contact_number,
+            "created_at": user.created_at
+        }, status=status.HTTP_200_OK)
+    
+    def put(self, request, user_id):
+        user_role = getattr(request.user, 'role', 'user')
+        if user_role != 'admin':
+            return Response({"error": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+        
+        user = User.objects(id=user_id).first()
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Update user fields
+        user.name = request.data.get('name', user.name)
+        user.email = request.data.get('email', user.email)
+        user.contact_number = request.data.get('contact_number', user.contact_number)
+        user.address = request.data.get('address', user.address)
+        user.role = request.data.get('role', user.role)
+        user.updated_at = datetime.utcnow()
+        user.save()
+        
+        return Response({
+            "message": "User updated successfully",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.name,
+                "role": user.role,
+                "address": user.address,
+                "contact_number": user.contact_number
+            }
+        }, status=status.HTTP_200_OK)
+
+
 class AdminDeliveriesView(APIView):
     permission_classes = [IsAuthenticated]
     def get(self, request):
@@ -443,11 +537,15 @@ class AdminDeliveriesView(APIView):
             user = User.objects(id=d.user_id).first()
             user_name = user.name if user else "Unknown"
             user_email = user.email if user else "Unknown"
+            driver = User.objects(id=d.driver_id).first() if d.driver_id else None
             data.append({
                 "id": str(d.id),
                 "user_id": d.user_id,
                 "user_name": user_name,
                 "user_email": user_email,
+                "driver_id": d.driver_id,
+                "driver_name": driver.name if driver else None,
+                "driver_contact": driver.contact_number if driver else None,
                 "status": d.status,
                 "pickup_address": d.pickup_address,
                 "delivery_address": d.delivery_address,
@@ -491,3 +589,86 @@ class AdminDeliveryUpdateView(APIView):
                 "updated_at": delivery.updated_at
             }
         }, status=status.HTTP_200_OK)
+
+
+class AdminDeliveryAssignDriverView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, delivery_id):
+        user_role = getattr(request.user, 'role', 'user')
+        if user_role != 'admin':
+            return Response({"error": "Admin access required"}, status=status.HTTP_403_FORBIDDEN)
+
+        delivery = Delivery.objects(id=delivery_id).first()
+        if not delivery:
+            return Response({"error": "Delivery not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = DeliveryDriverAssignSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        driver_id = serializer.validated_data['driver_id']
+        driver = User.objects(id=driver_id).first()
+        if not driver or driver.role != 'driver':
+            return Response({"error": "Invalid driver"}, status=status.HTTP_400_BAD_REQUEST)
+
+        delivery.driver_id = driver_id
+        if delivery.status == 'Pending':
+            delivery.status = 'Scheduled'
+        delivery.updated_at = datetime.utcnow()
+        delivery.save()
+
+        return Response({
+            "message": "Driver assigned successfully",
+            "delivery": {
+                "id": str(delivery.id),
+                "status": delivery.status,
+                "driver_id": delivery.driver_id,
+                "driver_name": driver.name,
+                "driver_contact": driver.contact_number,
+                "tracking_number": delivery.tracking_number,
+                "updated_at": delivery.updated_at
+            }
+        }, status=status.HTTP_200_OK)
+
+
+# ============ DRIVER VIEWS ============
+
+class DriverDeliveriesView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request):
+        user_role = getattr(request.user, 'role', 'user')
+        user_id = getattr(request.user, 'id', None)
+        
+        if user_role != 'driver':
+            return Response({"error": "Driver access required"}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get deliveries assigned to this driver
+        deliveries = Delivery.objects(driver_id=user_id).order_by('-created_at')
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            deliveries = deliveries.filter(status=status_filter)
+        
+        data = []
+        for d in deliveries:
+            user = User.objects(id=d.user_id).first()
+            user_name = user.name if user else "Unknown"
+            user_email = user.email if user else "Unknown"
+            user_contact = user.contact_number if user else "Unknown"
+            data.append({
+                "id": str(d.id),
+                "user_id": d.user_id,
+                "user_name": user_name,
+                "user_email": user_email,
+                "user_contact": user_contact,
+                "driver_id": d.driver_id,
+                "status": d.status,
+                "pickup_address": d.pickup_address,
+                "delivery_address": d.delivery_address,
+                "weight": d.weight,
+                "package_type": d.package_type,
+                "pickup_date": d.pickup_date,
+                "delivery_date": d.delivery_date,
+                "tracking_number": d.tracking_number,
+                "created_at": d.created_at
+            })
+        return Response(data, status=status.HTTP_200_OK)

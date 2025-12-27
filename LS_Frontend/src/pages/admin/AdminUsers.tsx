@@ -1,8 +1,10 @@
 import axios from 'axios'
-import { Mail, Search, Shield, User, Users } from 'lucide-react'
+import { Edit, Mail, Phone, Search, Shield, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export default function AdminUsers() {
+  const navigate = useNavigate()
   const [items, setItems] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [filterRole, setFilterRole] = useState('')
@@ -111,12 +113,37 @@ export default function AdminUsers() {
                 </div>
               </div>
 
+              {u.contact_number && (
+                <div className="flex items-center gap-3 p-3 bg-success/5 rounded-xl">
+                  <Phone className="w-5 h-5 text-success flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-textSecondary font-medium uppercase tracking-wide">Phone</p>
+                    <p className="text-sm text-textPrimary font-medium">{u.contact_number}</p>
+                  </div>
+                </div>
+              )}
+
+              {u.address && (
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs text-textSecondary font-medium mb-1">Address</p>
+                  <p className="text-sm text-textPrimary">{u.address}</p>
+                </div>
+              )}
+
               {u.id && (
                 <div className="pt-3 border-t border-gray-100">
                   <p className="text-xs text-textSecondary font-medium">User ID</p>
                   <p className="text-xs text-textPrimary font-mono mt-1">{u.id}</p>
                 </div>
               )}
+
+              {/* Edit Button */}
+              <button
+                onClick={() => navigate(`/admin/users/${u.id}/profile`)}
+                className="w-full mt-4 px-4 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-all font-semibold flex items-center justify-center gap-2 border border-primary/20"
+              >
+                <Edit className="w-4 h-4" /> Edit Profile
+              </button>
             </div>
           </div>
         ))}
