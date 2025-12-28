@@ -4,11 +4,22 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 interface DeliveryForm {
-  pickup_address: string
-  delivery_address: string
+  pickup: AddressFields
+  delivery: AddressFields
   weight?: string
+  weight_unit: string
   package_type?: string
   pickup_date: string
+}
+
+interface AddressFields {
+  line1: string
+  line2: string
+  landmark: string
+  city: string
+  state: string
+  pincode: string
+  country: string
 }
 
 export default function NewDelivery() {
@@ -16,9 +27,26 @@ export default function NewDelivery() {
   const { id } = useParams()
   const location = useLocation()
   const [form, setForm] = useState<DeliveryForm>({
-    pickup_address: '',
-    delivery_address: '',
+    pickup: {
+      line1: '',
+      line2: '',
+      landmark: '',
+      city: '',
+      state: '',
+      pincode: '',
+      country: '',
+    },
+    delivery: {
+      line1: '',
+      line2: '',
+      landmark: '',
+      city: '',
+      state: '',
+      pincode: '',
+      country: '',
+    },
     weight: '',
+    weight_unit: 'kg',
     package_type: '',
     pickup_date: '',
   })
@@ -31,22 +59,41 @@ export default function NewDelivery() {
     if (state?.mode === 'edit' && state?.delivery) {
       setIsEditing(true)
       const delivery = state.delivery
+      const mapAddressFromString = (address: string): AddressFields => ({
+        line1: address || '',
+        line2: '',
+        landmark: '',
+        city: '',
+        state: '',
+        pincode: '',
+        country: '',
+      })
+
       setForm({
-        pickup_address: delivery.pickup_address,
-        delivery_address: delivery.delivery_address,
-        weight: delivery.weight || '',
+        pickup: mapAddressFromString(delivery.pickup_address),
+        delivery: mapAddressFromString(delivery.delivery_address),
+        weight: delivery.weight ? `${delivery.weight}`.split(' ')[0] : '',
+        weight_unit: delivery.weight ? `${delivery.weight}`.split(' ')[1] || 'kg' : 'kg',
         package_type: delivery.package_type || '',
         pickup_date: new Date(delivery.pickup_date).toISOString().split('T')[0],
       })
     }
   }, [location])
 
+  const formatAddress = (addr: AddressFields) =>
+    [addr.line1, addr.line2, addr.landmark, addr.city, addr.state, addr.pincode, addr.country]
+      .filter(Boolean)
+      .join(', ')
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const token = localStorage.getItem('access_token')
 
-    if (!form.pickup_address || !form.delivery_address || !form.pickup_date) {
-      setMsg('Please fill all required fields')
+    const pickupRequired = [form.pickup.line1, form.pickup.city, form.pickup.state, form.pickup.pincode].every(Boolean)
+    const deliveryRequired = [form.delivery.line1, form.delivery.city, form.delivery.state, form.delivery.pincode].every(Boolean)
+
+    if (!pickupRequired || !deliveryRequired || !form.pickup_date) {
+      setMsg('Please complete required address fields and pickup date')
       return
     }
 
@@ -55,7 +102,10 @@ export default function NewDelivery() {
     try {
       if (isEditing && id) {
         const res = await axios.put(`/api/deliveries/${id}/edit/`, {
-          ...form,
+          pickup_address: formatAddress(form.pickup),
+          delivery_address: formatAddress(form.delivery),
+          weight: form.weight ? `${form.weight} ${form.weight_unit}` : '',
+          package_type: form.package_type,
           pickup_date: new Date(form.pickup_date).toISOString(),
         }, { headers: { Authorization: `Bearer ${token}` } })
         setMsg(`Updated: ${res.data.delivery.tracking_number}`)
@@ -64,14 +114,34 @@ export default function NewDelivery() {
         }, 1500)
       } else {
         const res = await axios.post('/api/deliveries/', {
-          ...form,
+          pickup_address: formatAddress(form.pickup),
+          delivery_address: formatAddress(form.delivery),
+          weight: form.weight ? `${form.weight} ${form.weight_unit}` : '',
+          package_type: form.package_type,
           pickup_date: new Date(form.pickup_date).toISOString(),
         }, { headers: { Authorization: `Bearer ${token}` } })
         setMsg(`Created: ${res.data.delivery.tracking_number}`)
         setForm({
-          pickup_address: '',
-          delivery_address: '',
+          pickup: {
+            line1: '',
+            line2: '',
+            landmark: '',
+            city: '',
+            state: '',
+            pincode: '',
+            country: '',
+          },
+          delivery: {
+            line1: '',
+            line2: '',
+            landmark: '',
+            city: '',
+            state: '',
+            pincode: '',
+            country: '',
+          },
           weight: '',
+          weight_unit: 'kg',
           package_type: '',
           pickup_date: '',
         })
@@ -139,31 +209,155 @@ export default function NewDelivery() {
             
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-textPrimary flex items-center gap-2">
+                <label className="text-sm font-semibold text-textPrimary flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-success" />
                   Pickup Address <span className="text-error">*</span>
                 </label>
-                <input
-                  value={form.pickup_address}
-                  onChange={(e) => setForm({ ...form, pickup_address: e.target.value })}
-                  placeholder="Enter complete pickup address..."
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
-                  required
-                />
+                <div className="grid md:grid-cols-2 gap-5 md:gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Pincode <span className="text-error">*</span></label>
+                    <input
+                      value={form.pickup.pincode}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, pincode: e.target.value } })}
+                      placeholder="e.g., 560001"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Address Line 1 <span className="text-error">*</span></label>
+                    <input
+                      value={form.pickup.line1}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, line1: e.target.value } })}
+                      placeholder="House / Building / Street"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Address Line 2</label>
+                    <input
+                      value={form.pickup.line2}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, line2: e.target.value } })}
+                      placeholder="Apartment, floor, block"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Landmark</label>
+                    <input
+                      value={form.pickup.landmark}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, landmark: e.target.value } })}
+                      placeholder="Near park / mall"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">City <span className="text-error">*</span></label>
+                    <input
+                      value={form.pickup.city}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, city: e.target.value } })}
+                      placeholder="City"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">State <span className="text-error">*</span></label>
+                    <input
+                      value={form.pickup.state}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, state: e.target.value } })}
+                      placeholder="State"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-semibold text-textSecondary">Country</label>
+                    <input
+                      value={form.pickup.country}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, country: e.target.value } })}
+                      placeholder="Country"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-textPrimary flex items-center gap-2">
+              <div className="space-y-2 md:pl-6 md:border-l md:border-dashed md:border-gray-200 md:ml-2 pt-6 md:pt-0 border-t md:border-t-0 border-gray-100">
+                <label className="text-sm font-semibold text-textPrimary flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-error" />
                   Delivery Address <span className="text-error">*</span>
                 </label>
-                <input
-                  value={form.delivery_address}
-                  onChange={(e) => setForm({ ...form, delivery_address: e.target.value })}
-                  placeholder="Enter complete delivery address..."
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
-                  required
-                />
+                <div className="grid md:grid-cols-2 gap-5 md:gap-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Pincode <span className="text-error">*</span></label>
+                    <input
+                      value={form.delivery.pincode}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, pincode: e.target.value } })}
+                      placeholder="e.g., 560034"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Address Line 1 <span className="text-error">*</span></label>
+                    <input
+                      value={form.delivery.line1}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, line1: e.target.value } })}
+                      placeholder="House / Building / Street"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Address Line 2</label>
+                    <input
+                      value={form.delivery.line2}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, line2: e.target.value } })}
+                      placeholder="Apartment, floor, block"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">Landmark</label>
+                    <input
+                      value={form.delivery.landmark}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, landmark: e.target.value } })}
+                      placeholder="Near school / office"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">City <span className="text-error">*</span></label>
+                    <input
+                      value={form.delivery.city}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, city: e.target.value } })}
+                      placeholder="City"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-textSecondary">State <span className="text-error">*</span></label>
+                    <input
+                      value={form.delivery.state}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, state: e.target.value } })}
+                      placeholder="State"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-semibold text-textSecondary">Country</label>
+                    <input
+                      value={form.delivery.country}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, country: e.target.value } })}
+                      placeholder="Country"
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -180,13 +374,26 @@ export default function NewDelivery() {
             <div className="grid md:grid-cols-3 gap-6">
               <div className="space-y-2">
                 <label className="block text-sm font-semibold text-textPrimary">Weight</label>
-                <input
-                  type="text"
-                  value={form.weight}
-                  onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                  placeholder="e.g., 5 kg"
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                />
+                <div className="flex gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.weight}
+                    onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                    placeholder="e.g., 5.00"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  />
+                  <select
+                    value={form.weight_unit}
+                    onChange={(e) => setForm({ ...form, weight_unit: e.target.value })}
+                    className="px-3 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white"
+                  >
+                    <option value="kg">kg</option>
+                    <option value="g">g</option>
+                    <option value="lb">lb</option>
+                  </select>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -206,7 +413,7 @@ export default function NewDelivery() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-textPrimary flex items-center gap-2">
+                <label className="text-sm font-semibold text-textPrimary flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-primary" />
                   Pickup Date <span className="text-error">*</span>
                 </label>

@@ -325,34 +325,6 @@ class DeliveryCancelView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-class TrackDeliveryView(APIView):
-    def put(self, request, delivery_id):
-        user_id = getattr(request.user, 'id', None)
-        user_role = getattr(request.user, 'role', 'user')
-        delivery = Delivery.objects(id=delivery_id).first()
-        if not delivery:
-            return Response({"error": "Delivery not found"}, status=status.HTTP_404_NOT_FOUND)
-        if delivery.user_id != user_id and user_role != 'admin':
-            return Response({"error": "Unauthorized"}, status=status.HTTP_403_FORBIDDEN)
-        serializer = DeliveryStatusUpdateSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        delivery.status = serializer.validated_data['status']
-        delivery.updated_at = datetime.utcnow()
-        if delivery.status == 'Delivered' and not delivery.delivery_date:
-            delivery.delivery_date = datetime.utcnow()
-        delivery.save()
-        return Response({
-            "message": "Delivery updated successfully",
-            "delivery": {
-                "id": str(delivery.id),
-                "status": delivery.status,
-                "tracking_number": delivery.tracking_number,
-                "updated_at": delivery.updated_at
-            }
-        }, status=status.HTTP_200_OK)
-
-
 # ============ TRACKING ============
 
 class TrackDeliveryView(APIView):
@@ -360,6 +332,38 @@ class TrackDeliveryView(APIView):
         delivery = Delivery.objects(tracking_number=tracking_number).first()
         if not delivery:
             return Response({"error": "Tracking number not found"}, status=status.HTTP_404_NOT_FOUND)
+        driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
+        return Response({
+            "tracking_number": delivery.tracking_number,
+            "status": delivery.status,
+            "driver_id": delivery.driver_id,
+            "driver_name": driver.name if driver else None,
+            "driver_contact": driver.contact_number if driver else None,
+            "pickup_address": delivery.pickup_address,
+            "delivery_address": delivery.delivery_address,
+            "package_type": delivery.package_type,
+            "weight": delivery.weight,
+            "pickup_date": delivery.pickup_date,
+            "delivery_date": delivery.delivery_date,
+            "created_at": delivery.created_at,
+            "updated_at": delivery.updated_at
+        }, status=status.HTTP_200_OK)
+
+
+class TrackDeliveryByPhoneView(APIView):
+    def get(self, request, phone_number):
+        user = User.objects(contact_number=phone_number).first()
+        if not user:
+            return Response({
+                "error": "No user found with this phone number"
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        delivery = Delivery.objects(user_id=user.id).order_by('-created_at').first()
+        if not delivery:
+            return Response({
+                "error": "No deliveries found for this phone number"
+            }, status=status.HTTP_404_NOT_FOUND)
+
         driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
         return Response({
             "tracking_number": delivery.tracking_number,
@@ -412,6 +416,8 @@ class ReviewListCreateView(APIView):
         existing = Review.objects(delivery_id=data['delivery_id'], user_id=user_id).first()
         if existing:
             return Response({"error": "You have already reviewed this delivery"}, status=status.HTTP_400_BAD_REQUEST)
+
+
         review = Review(
             delivery_id=data['delivery_id'],
             user_id=user_id,

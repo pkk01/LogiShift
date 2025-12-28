@@ -14,6 +14,19 @@
   --error: #dc2626;
 }
 
+/* When html has .dark, override CSS variables */
+.dark {
+  --primary: #60a5fa; /* lighter accent in dark */
+  --secondary: #34d399;
+  --bg: #0f172a; /* slate-900 */
+  --surface: #111827; /* gray-900 */
+  --textPrimary: #e5e7eb; /* gray-200 */
+  --textSecondary: #94a3b8; /* slate-400 */
+  --alert: #fb923c;
+  --success: #22c55e;
+  --error: #ef4444;
+}
+
 html,
 body,
 #root {
@@ -57,4 +70,83 @@ html {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1f2937; /* gray-800 */
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151; /* gray-700 */
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563; /* gray-600 */
+}
+
+/* Ensure Tailwind utility classes read CSS variables even if config hasn't reloaded */
+.bg-bg {
+  background-color: var(--bg) !important;
+}
+.bg-surface {
+  background-color: var(--surface) !important;
+}
+.text-textPrimary {
+  color: var(--textPrimary) !important;
+}
+.text-textSecondary {
+  color: var(--textSecondary) !important;
+}
+
+/* Softer borders in dark mode */
+.dark .border-gray-100 {
+  border-color: #334155 !important;
+}
+.dark .border-gray-200 {
+  border-color: #475569 !important;
+}
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 1px 1px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Typography + form defaults to ensure legible text in dark mode */
+body {
+  background: var(--bg);
+  color: var(--textPrimary);
+}
+.dark body {
+  background: var(--bg);
+  color: var(--textPrimary);
+}
+
+input,
+select,
+textarea {
+  color: var(--textPrimary);
+  background: var(--surface);
+}
+.dark input,
+.dark select,
+.dark textarea {
+  color: var(--textPrimary);
+  background: var(--surface);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--textSecondary);
+  opacity: 1;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--textSecondary);
+  opacity: 1;
+}
+
+/* Make default labels readable without utility classes */
+label {
+  color: var(--textPrimary);
+}
+.dark label {
+  color: var(--textPrimary);
 }

@@ -1,12 +1,14 @@
 import axios from 'axios'
 import { Phone, UserPlus } from 'lucide-react'
 import { useState } from 'react'
+import { COUNTRY_CODES, format10DigitPhone, isValid10DigitPhone } from '../utils/phoneFormat'
 
 export default function Register() {
   const [form, setForm] = useState({ 
     email: '', 
     password: '', 
     name: '',
+    country_code: '+1',
     contact_number: '',
     address: ''
   })
@@ -16,10 +18,22 @@ export default function Register() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(''); setSuccess('')
+    
+    if (!isValid10DigitPhone(form.contact_number)) {
+      setError('Please enter a valid 10-digit phone number')
+      return
+    }
+    
     try {
-      await axios.post('/api/register/', form)
+      await axios.post('/api/register/', {
+        email: form.email,
+        password: form.password,
+        name: form.name,
+        contact_number: form.contact_number,
+        address: form.address
+      })
       setSuccess('Registration successful. Please login.')
-      setForm({ email: '', password: '', name: '', contact_number: '', address: '' })
+      setForm({ email: '', password: '', name: '', country_code: '+1', contact_number: '', address: '' })
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Registration failed')
     }
@@ -71,14 +85,30 @@ export default function Register() {
             <label className="flex items-center gap-2 text-sm font-semibold text-textPrimary mb-2">
               <Phone className="w-4 h-4" /> Phone Number
             </label>
-            <input
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-              type="tel"
-              placeholder="+1 (555) 123-4567"
-              value={form.contact_number}
-              onChange={(e) => setForm({ ...form, contact_number: e.target.value })}
-              required
-            />
+            <div className="flex gap-2">
+              <select
+                value={form.country_code}
+                onChange={(e) => setForm({ ...form, country_code: e.target.value })}
+                className="px-3 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all bg-white"
+              >
+                {COUNTRY_CODES.map((cc) => (
+                  <option key={cc.code} value={cc.code}>
+                    {cc.code} {cc.country}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                type="tel"
+                placeholder="1234567890"
+                value={form.contact_number}
+                onChange={(e) => setForm({ ...form, contact_number: format10DigitPhone(e.target.value) })}
+                maxLength={10}
+              />
+            </div>
+            {form.contact_number && !isValid10DigitPhone(form.contact_number) && (
+              <p className="text-xs text-error mt-1">Please enter exactly 10 digits</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-semibold text-textPrimary mb-2">Address</label>

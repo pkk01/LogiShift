@@ -1,22 +1,50 @@
 import axios from 'axios'
-import { CheckCircle2, MapPin, Package, Search, Truck, XCircle } from 'lucide-react'
+import { CheckCircle2, MapPin, Package, Phone, Search, Truck, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import DeliveryStatusTimeline from '../components/DeliveryStatusTimeline'
+import { COUNTRY_CODES, format10DigitPhone, isValid10DigitPhone } from '../utils/phoneFormat'
 
 export default function Track() {
+  const [searchType, setSearchType] = useState<'tracking' | 'phone'>('tracking')
   const [tracking, setTracking] = useState('')
+  const [countryCode, setCountryCode] = useState('+1')
+  const [phone, setPhone] = useState('')
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState('')
-  
+  const [loading, setLoading] = useState(false)
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setLoading(true)
+    
     try {
-      const res = await axios.get(`/api/track/${tracking}/`)
+      let res
+      if (searchType === 'tracking') {
+        if (!tracking.trim()) {
+          setError('Please enter a tracking number.')
+          setLoading(false)
+          return
+        }
+        res = await axios.get(`/api/track/${tracking}/`)
+      } else {
+        if (!isValid10DigitPhone(phone)) {
+          setError('Please enter exactly 10 digits.')
+          setLoading(false)
+          return
+        }
+        res = await axios.get(`/api/track-by-phone/${phone}/`)
+      }
       setData(res.data)
-    } catch (err) {
+    } catch (err: any) {
       setData(null)
-      setError('Tracking number not found. Please check and try again.')
+      const errorMsg = err.response?.data?.detail || 
+                       (searchType === 'tracking' 
+                         ? 'Tracking number not found. Please check and try again.'
+                         : 'No shipments found for this phone number.')
+      setError(errorMsg)
+    } finally {
+      setLoading(false)
     }
   }
   
@@ -36,30 +64,103 @@ export default function Track() {
 
       {/* Search Card */}
       <div className="max-w-2xl mx-auto">
-        <div className="bg-surface rounded-lg border border-gray-200 p-5 shadow-md">
-          <form onSubmit={submit} className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-textPrimary mb-2 flex items-center gap-1.5">
-                <Package className="w-3.5 h-3.5 text-primary" />
-                Tracking Number
-              </label>
-              <input
-                type="text"
-                value={tracking}
-                onChange={(e) => setTracking(e.target.value)}
-                placeholder="e.g., LS-1234567890"
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all"
-                required
-              />
-            </div>
+        <div className="bg-surface rounded-lg border border-gray-200 shadow-md overflow-hidden">
+          {/* Tab Toggle */}
+          <div className="flex border-b border-gray-200 bg-gray-50">
             <button
-              type="submit"
-              className="w-full py-2.5 bg-gradient-to-r from-primary to-blue-600 text-white rounded-lg hover:shadow-lg hover:scale-[1.02] transition-all font-semibold text-sm flex items-center justify-center gap-2 shadow-md"
+              onClick={() => {
+                setSearchType('tracking')
+                setPhone('')
+                setError('')
+              }}
+              className={`flex-1 py-3 px-4 font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                searchType === 'tracking'
+                  ? 'bg-primary text-white'
+                  : 'text-textSecondary hover:bg-gray-100'
+              }`}
             >
-              <Search className="w-4 h-4" />
-              Track
+              <Package className="w-4 h-4" />
+              Tracking Number
             </button>
-          </form>
+            <button
+              onClick={() => {
+                setSearchType('phone')
+                setTracking('')
+                setError('')
+              }}
+              className={`flex-1 py-3 px-4 font-semibold text-sm flex items-center justify-center gap-2 transition-all ${
+                searchType === 'phone'
+                  ? 'bg-primary text-white'
+                  : 'text-textSecondary hover:bg-gray-100'
+              }`}
+            >
+              <Phone className="w-4 h-4" />
+              Phone Number
+            </button>
+          </div>
+
+          {/* Form */}
+          <div className="p-5">
+            <form onSubmit={submit} className="space-y-3">
+              {searchType === 'tracking' ? (
+                <div>
+                  <label className="text-xs font-semibold text-textPrimary mb-2 flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-primary" />
+                    Tracking Number
+                  </label>
+                  <input
+                    type="text"
+                    value={tracking}
+                    onChange={(e) => setTracking(e.target.value.toUpperCase())}
+                    placeholder="e.g., LS-1234567890"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all"
+                    required
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="text-xs font-semibold text-textPrimary mb-2 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-primary" />
+                    Phone Number
+                  </label>
+                  <div className="flex gap-2">
+                    <select
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all bg-white"
+                    >
+                      {COUNTRY_CODES.map((cc) => (
+                        <option key={cc.code} value={cc.code}>
+                          {cc.code}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(format10DigitPhone(e.target.value))}
+                      placeholder="1234567890"
+                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-sm transition-all"
+                      maxLength={10}
+                    />
+                  </div>
+                  <p className="text-xs text-textSecondary mt-1">Enter 10-digit phone number</p>
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-2.5 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 shadow-md transition-all ${
+                  loading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-primary to-blue-600 hover:shadow-lg hover:scale-[1.02]'
+                }`}
+              >
+                <Search className="w-4 h-4" />
+                {loading ? 'Searching...' : 'Track'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 

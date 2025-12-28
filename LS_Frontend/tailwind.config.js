@@ -1,18 +1,19 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
-        primary: "#2563EB",
-        secondary: "#22C55E",
-        bg: "#F9FAFB",
-        surface: "#FFFFFF",
-        textPrimary: "#1E293B",
-        textSecondary: "#64748B",
-        alert: "#F97316",
-        success: "#16A34A",
-        error: "#DC2626",
+        primary: "var(--primary)",
+        secondary: "var(--secondary)",
+        bg: "var(--bg)",
+        surface: "var(--surface)",
+        textPrimary: "var(--textPrimary)",
+        textSecondary: "var(--textSecondary)",
+        alert: "var(--alert)",
+        success: "var(--success)",
+        error: "var(--error)",
       },
     },
   },

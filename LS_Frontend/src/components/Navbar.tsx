@@ -1,20 +1,40 @@
-import { BadgeCheck, History, LogOut, Settings, Truck, User } from 'lucide-react'
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { BadgeCheck, History, LogOut, Moon, Settings, Sun, Truck, User } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 export default function Navbar() {
   const navigate = useNavigate()
+  const location = useLocation()
   const token = localStorage.getItem('access_token')
   const role = localStorage.getItem('role')
   const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))
+
+  useEffect(() => {
+    // keep state in sync if theme changes elsewhere
+    setIsDark(document.documentElement.classList.contains('dark'))
+  }, [])
+
+  const toggleTheme = () => {
+    const next = !isDark
+    setIsDark(next)
+    if (next) {
+      document.documentElement.classList.add('dark')
+      localStorage.setItem('theme', 'dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+      localStorage.setItem('theme', 'light')
+    }
+  }
 
   const logout = () => {
     localStorage.clear()
     navigate('/login')
   }
+  const isHome = location.pathname === '/' || location.pathname === '/dashboard'
   return (
     <nav className="bg-surface shadow-md sticky top-0 z-50 border-b border-gray-100">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className={`${isHome ? 'max-w-6xl' : 'max-w-7xl'} mx-auto px-4`}>
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
@@ -86,6 +106,15 @@ export default function Navbar() {
             >
               <BadgeCheck className="w-4 h-4" /> Track
             </Link>
+            {/* Theme toggle - always visible */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg border-2 border-gray-200 hover:bg-primary/5 transition-all"
+              aria-label="Toggle dark mode"
+              title="Toggle dark mode"
+            >
+              {isDark ? <Sun className="w-4 h-4 text-primary" /> : <Moon className="w-4 h-4 text-textSecondary" />}
+            </button>
             {!token ? (
               <>
                 <Link

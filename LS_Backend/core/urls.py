@@ -4,12 +4,13 @@ from .views import (
     DeliveryListCreateView, DeliveryDetailView, DeliveryEditView, DeliveryCancelView,
     AdminUsersView, AdminUserDetailView, AdminDeliveriesView, AdminDeliveryUpdateView, AdminDeliveryAssignDriverView,
     DriverDeliveriesView,
-    TrackDeliveryView, ReviewListCreateView, DeliveryReviewsView
+    TrackDeliveryView, TrackDeliveryByPhoneView, ReviewListCreateView, DeliveryReviewsView
 )
 
 urlpatterns = [
         # Authentication
     path('register/', RegisterView.as_view(), name='register'),
+
     path('login/', LoginView.as_view(), name='login'),
     path('profile/', ProfileView.as_view(), name='profile'),
     
@@ -31,6 +32,7 @@ urlpatterns = [
     
     # Tracking (Public)
     path('track/<str:tracking_number>/', TrackDeliveryView.as_view(), name='track-delivery'),
+    path('track-by-phone/<str:phone_number>/', TrackDeliveryByPhoneView.as_view(), name='track-by-phone'),
     
     # Reviews
     path('reviews/', ReviewListCreateView.as_view(), name='reviews'),

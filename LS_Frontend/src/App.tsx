@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import Footer from './components/Footer'
 import Navbar from './components/Navbar'
 import Dashboard from './pages/Dashboard'
 import Deliveries from './pages/Deliveries'
@@ -21,9 +22,9 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
 export default function App() {
   return (
-    <div className="min-h-screen bg-bg text-textPrimary">
+    <div className="flex flex-col min-h-screen bg-bg text-textPrimary">
       <Navbar />
-      <div className="max-w-6xl mx-auto p-4">
+      <div className="flex-1 max-w-6xl mx-auto w-full p-4">
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="/admin/users/:userId/profile" element={<RequireAuth><AdminProfile /></RequireAuth>} />
         </Routes>
       </div>
+      <Footer />
     </div>
   )
 }
