@@ -14,6 +14,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'rest_framework',
         'corsheaders',
     'core',
@@ -63,6 +64,7 @@ CORS_ALLOW_HEADERS = [
 
 ROOT_URLCONF = 'logistics.urls'
 WSGI_APPLICATION = 'logistics.wsgi.application'
+ASGI_APPLICATION = 'logistics.asgi.application'
 
 # MongoDB Connection
 mongoengine.connect(
@@ -83,3 +85,10 @@ SIMPLE_JWT = {
 }
 
 STATIC_URL = 'static/'
+
+# Channels (WebSocket) - in-memory layer for development
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}

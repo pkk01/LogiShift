@@ -68,7 +68,7 @@ const DeliveryStatusTimeline: React.FC<Props> = ({ currentStatus, pickupDate, de
   const steps = statusMap[currentStatus] || statusMap['Pending'];
 
   return (
-    <div className="w-full bg-gradient-to-br from-surface to-gray-50 rounded-lg p-3 border border-gray-200 shadow">
+    <div className="w-full bg-gradient-to-br from-surface to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-lg p-3 border border-gray-200 dark:border-gray-700 shadow">
       <h3 className="text-base font-bold text-textPrimary mb-3 flex items-center gap-1.5">
         <div className="w-6 h-6 bg-primary/10 rounded flex items-center justify-center">
           <Truck className="w-4 h-4 text-primary" />
@@ -77,7 +77,7 @@ const DeliveryStatusTimeline: React.FC<Props> = ({ currentStatus, pickupDate, de
       </h3>
       <div className="relative">
         {/* Progress Line */}
-        <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 rounded-full" style={{ zIndex: 0 }} />
+        <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200 dark:bg-gray-700 rounded-full" style={{ zIndex: 0 }} />
         <div
           className="absolute top-5 left-0 h-0.5 bg-gradient-to-r from-success to-secondary rounded-full transition-all duration-1000"
           style={{
@@ -97,11 +97,11 @@ const DeliveryStatusTimeline: React.FC<Props> = ({ currentStatus, pickupDate, de
                     ? 'bg-gradient-to-br from-success to-secondary shadow shadow-success/30 scale-105'
                     : step.status === 'current'
                     ? 'bg-gradient-to-br from-primary to-blue-600 shadow shadow-primary/30 scale-105 animate-pulse'
-                    : 'bg-gray-200 scale-100'
+                    : 'bg-gray-200 dark:bg-gray-700 scale-100'
                 }`}
               >
                 <div className={
-                  step.status === 'completed' || step.status === 'current' ? 'text-white' : 'text-gray-400'
+                  step.status === 'completed' || step.status === 'current' ? 'text-white' : 'text-gray-400 dark:text-gray-500'
                 }>
                   {step.icon}
                 </div>
@@ -122,7 +122,7 @@ const DeliveryStatusTimeline: React.FC<Props> = ({ currentStatus, pickupDate, de
 
               {/* Timestamp */}
               {step.timestamp && (
-                <p className="text-[10px] text-textSecondary font-medium px-2 py-0.5 bg-white rounded-full border border-gray-200 mt-0.5">
+                <p className="text-[10px] text-textSecondary font-medium px-2 py-0.5 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 mt-0.5">
                   {formatDate(step.timestamp)}
                 </p>
               )}

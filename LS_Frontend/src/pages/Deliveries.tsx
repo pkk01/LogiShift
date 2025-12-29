@@ -198,7 +198,7 @@ export default function Deliveries() {
               <h2 className="text-2xl font-bold text-textPrimary">Delivery Details</h2>
               <button
                 onClick={() => setSelectedDelivery(null)}
-                className="p-2.5 hover:bg-gray-200 rounded-lg transition"
+                className="p-2.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition text-textPrimary"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -270,7 +270,7 @@ export default function Deliveries() {
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-5 border-t border-gray-200">
+              <div className="flex gap-3 pt-5 border-t border-gray-200 dark:border-gray-700">
                 {selectedDelivery.status !== 'Delivered' && selectedDelivery.status !== 'Cancelled' && selectedDelivery.status !== 'In Transit' && selectedDelivery.status !== 'Out for Delivery' && (
                   <>
                     <button
@@ -294,7 +294,7 @@ export default function Deliveries() {
                 )}
                 <button
                   onClick={() => setSelectedDelivery(null)}
-                  className="flex-1 bg-gray-200 text-textPrimary py-2.5 rounded-lg text-base font-medium hover:bg-gray-300 transition"
+                  className="flex-1 bg-gray-200 dark:bg-gray-700 text-textPrimary py-2.5 rounded-lg text-base font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition"
                 >
                   Close
                 </button>

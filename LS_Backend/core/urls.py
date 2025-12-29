@@ -3,8 +3,10 @@ from .views import (
     RegisterView, LoginView, ProfileView,
     DeliveryListCreateView, DeliveryDetailView, DeliveryEditView, DeliveryCancelView,
     AdminUsersView, AdminUserDetailView, AdminDeliveriesView, AdminDeliveryUpdateView, AdminDeliveryAssignDriverView,
-    DriverDeliveriesView,
-    TrackDeliveryView, TrackDeliveryByPhoneView, ReviewListCreateView, DeliveryReviewsView
+    DriverDeliveriesView, DriverDeliveryStatusUpdateView,
+    TrackDeliveryView, TrackDeliveryByPhoneView, ReviewListCreateView, DeliveryReviewsView,
+    NotificationsView, NotificationDetailView, MarkNotificationAsReadView, MarkAllNotificationsAsReadView,
+    DeleteNotificationView, UnreadNotificationCountView
 )
 
 urlpatterns = [
@@ -29,6 +31,7 @@ urlpatterns = [
     
     # Driver
     path('driver/deliveries/', DriverDeliveriesView.as_view(), name='driver-deliveries'),
+    path('driver/deliveries/<str:delivery_id>/status/', DriverDeliveryStatusUpdateView.as_view(), name='driver-delivery-status'),
     
     # Tracking (Public)
     path('track/<str:tracking_number>/', TrackDeliveryView.as_view(), name='track-delivery'),
@@ -37,4 +40,12 @@ urlpatterns = [
     # Reviews
     path('reviews/', ReviewListCreateView.as_view(), name='reviews'),
     path('deliveries/<str:delivery_id>/reviews/', DeliveryReviewsView.as_view(), name='delivery-reviews'),
+    
+    # Notifications
+    path('notifications/', NotificationsView.as_view(), name='notifications'),
+    path('notifications/unread-count/', UnreadNotificationCountView.as_view(), name='unread-count'),
+    path('notifications/read-all/', MarkAllNotificationsAsReadView.as_view(), name='mark-all-read'),
+    path('notifications/<str:notification_id>/', NotificationDetailView.as_view(), name='notification-detail'),
+    path('notifications/<str:notification_id>/read/', MarkNotificationAsReadView.as_view(), name='mark-read'),
+    path('notifications/<str:notification_id>/delete/', DeleteNotificationView.as_view(), name='delete-notification'),
 ]

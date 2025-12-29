@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Delivery, Payment, Review
+from .models import User, Delivery, Payment, Review, Notification
 
 class UserSerializer(serializers.Serializer):
     id = serializers.CharField(read_only=True)
@@ -76,3 +76,18 @@ class ReviewSerializer(serializers.Serializer):
     rating = serializers.CharField(required=True)
     comment = serializers.CharField(required=False)
     created_at = serializers.DateTimeField(read_only=True)
+
+
+class NotificationSerializer(serializers.Serializer):
+    id = serializers.CharField(read_only=True)
+    recipient_id = serializers.CharField(read_only=True)
+    recipient_role = serializers.CharField(read_only=True)
+    title = serializers.CharField()
+    message = serializers.CharField()
+    notification_type = serializers.CharField(default='info')
+    related_delivery_id = serializers.CharField(required=False, allow_blank=True)
+    related_user_id = serializers.CharField(required=False, allow_blank=True)
+    is_read = serializers.CharField(read_only=True)
+    action_url = serializers.CharField(required=False, allow_blank=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    updated_at = serializers.DateTimeField(read_only=True)

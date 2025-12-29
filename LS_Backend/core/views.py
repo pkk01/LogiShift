@@ -3,16 +3,22 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import User, Delivery, Payment, Review
+import bcrypt
+from datetime import datetime
+from .models import User, Delivery, Payment, Review, Notification
 from .serializers import (
     RegisterSerializer, LoginSerializer, UserSerializer,
     DeliverySerializer, DeliveryStatusUpdateSerializer,
     PaymentSerializer, ReviewSerializer, DeliveryEditSerializer,
-    DeliveryCancelSerializer, DeliveryDriverAssignSerializer
+    DeliveryCancelSerializer, DeliveryDriverAssignSerializer,
+    NotificationSerializer
 )
-import bcrypt
-import uuid
-from datetime import datetime
+from .notification_utils import (
+    notify_admin_on_delivery_created, notify_user_on_delivery_updated,
+    notify_admin_on_delivery_cancelled, notify_driver_on_assignment,
+    notify_user_on_driver_assignment, notify_admin_on_delivery_delivered,
+    notify_user_on_delivery_delivered
+)
 
 
 # Helper function to generate JWT tokens
@@ -186,6 +192,7 @@ class DeliveryListCreateView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         user_id = getattr(request.user, 'id', None)
+        user = User.objects(id=user_id).first()
         data = serializer.validated_data
         tracking_number = f"LS{uuid.uuid4().hex[:10].upper()}"
         delivery = Delivery(
@@ -200,6 +207,11 @@ class DeliveryListCreateView(APIView):
             tracking_number=tracking_number
         )
         delivery.save()
+        
+        # Send notification to admin
+        if user:
+            notify_admin_on_delivery_created(user_id, str(delivery.id), user.name)
+        
         return Response({
             "message": "Delivery created successfully",
             "delivery": {
@@ -298,6 +310,7 @@ class DeliveryCancelView(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request, delivery_id):
         user_id = getattr(request.user, 'id', None)
+        user = User.objects(id=user_id).first()
         delivery = Delivery.objects(id=delivery_id).first()
         if not delivery:
             return Response({"error": "Delivery not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -313,6 +326,10 @@ class DeliveryCancelView(APIView):
         delivery.status = 'Cancelled'
         delivery.updated_at = datetime.utcnow()
         delivery.save()
+        
+        # Send notification to admin
+        if user:
+            notify_admin_on_delivery_cancelled(user_id, str(delivery.id), user.name)
         
         return Response({
             "message": "Delivery cancelled successfully",
@@ -585,6 +602,16 @@ class AdminDeliveryUpdateView(APIView):
         if delivery.status == 'Delivered' and not delivery.delivery_date:
             delivery.delivery_date = datetime.utcnow()
         delivery.save()
+        
+        # Send notification to user about status update
+        notify_user_on_delivery_updated(delivery.user_id, str(delivery.id), delivery.status)
+        
+        # Send notification to admin and user if delivered
+        if delivery.status == 'Delivered':
+            driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
+            driver_name = driver.name if driver else 'Driver'
+            notify_admin_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
+            notify_user_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
 
         return Response({
             "message": "Delivery status updated successfully",
@@ -622,6 +649,12 @@ class AdminDeliveryAssignDriverView(APIView):
             delivery.status = 'Scheduled'
         delivery.updated_at = datetime.utcnow()
         delivery.save()
+        
+        # Send notifications about driver assignment
+        user = User.objects(id=delivery.user_id).first()
+        user_name = user.name if user else "User"
+        notify_driver_on_assignment(driver_id, str(delivery.id), user_name)
+        notify_user_on_driver_assignment(delivery.user_id, str(delivery.id), driver.name)
 
         return Response({
             "message": "Driver assigned successfully",
@@ -678,3 +711,204 @@ class DriverDeliveriesView(APIView):
                 "created_at": d.created_at
             })
         return Response(data, status=status.HTTP_200_OK)
+
+
+class DriverDeliveryStatusUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+    ALLOWED_STATUSES = {'Out for Delivery', 'Delivered', 'Cancelled'}
+
+    def put(self, request, delivery_id):
+        user_role = getattr(request.user, 'role', 'user')
+        user_id = getattr(request.user, 'id', None)
+        if user_role != 'driver':
+            return Response({"error": "Driver access required"}, status=status.HTTP_403_FORBIDDEN)
+
+        delivery = Delivery.objects(id=delivery_id, driver_id=user_id).first()
+        if not delivery:
+            return Response({"error": "Delivery not found or not assigned"}, status=status.HTTP_404_NOT_FOUND)
+
+        new_status = request.data.get('status')
+        if new_status not in self.ALLOWED_STATUSES:
+            return Response({"error": "Invalid status for driver"}, status=status.HTTP_400_BAD_REQUEST)
+
+        delivery.status = new_status
+        if new_status == 'Delivered' and not delivery.delivery_date:
+            delivery.delivery_date = datetime.utcnow()
+        delivery.updated_at = datetime.utcnow()
+        delivery.save()
+
+        # Notify user and admin as needed
+        notify_user_on_delivery_updated(delivery.user_id, str(delivery.id), delivery.status)
+        if delivery.status == 'Delivered':
+            driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
+            driver_name = driver.name if driver else 'Driver'
+            notify_admin_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
+            notify_user_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
+
+        return Response({
+            "message": "Delivery status updated successfully",
+            "delivery": {
+                "id": str(delivery.id),
+                "status": delivery.status,
+                "tracking_number": delivery.tracking_number,
+                "updated_at": delivery.updated_at
+            }
+        }, status=status.HTTP_200_OK)
+
+
+# ==================== NOTIFICATION VIEWS ====================
+
+class NotificationsView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get all notifications for the current user"""
+        user_id = getattr(request.user, 'id', None)
+        user = User.objects(id=user_id).first()
+        
+        if not user:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Get query parameters for filtering
+        limit = request.query_params.get('limit', 20)
+        unread_only = request.query_params.get('unread_only', 'false')
+        
+        try:
+            limit = int(limit)
+        except:
+            limit = 20
+        
+        # Get notifications
+        notifications = Notification.objects(recipient_id=user_id).order_by('-created_at')
+        
+        if unread_only == 'true':
+            notifications = notifications.filter(is_read='false')
+        
+        notifications = notifications.limit(limit)
+        
+        # Serialize and return
+        data = []
+        for notif in notifications:
+            data.append({
+                "id": str(notif.id),
+                "recipient_id": notif.recipient_id,
+                "recipient_role": notif.recipient_role,
+                "title": notif.title,
+                "message": notif.message,
+                "notification_type": notif.notification_type,
+                "related_delivery_id": notif.related_delivery_id,
+                "related_user_id": notif.related_user_id,
+                "is_read": notif.is_read,
+                "action_url": notif.action_url,
+                "created_at": notif.created_at,
+                "updated_at": notif.updated_at
+            })
+        
+        # Count unread
+        unread_count = Notification.objects(recipient_id=user_id, is_read='false').count()
+        
+        return Response({
+            "notifications": data,
+            "unread_count": unread_count,
+            "total_count": Notification.objects(recipient_id=user_id).count()
+        }, status=status.HTTP_200_OK)
+
+
+class NotificationDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, notification_id):
+        """Get a specific notification"""
+        user_id = getattr(request.user, 'id', None)
+        
+        notification = Notification.objects(id=notification_id, recipient_id=user_id).first()
+        if not notification:
+            return Response({"error": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        return Response({
+            "id": str(notification.id),
+            "recipient_id": notification.recipient_id,
+            "recipient_role": notification.recipient_role,
+            "title": notification.title,
+            "message": notification.message,
+            "notification_type": notification.notification_type,
+            "related_delivery_id": notification.related_delivery_id,
+            "related_user_id": notification.related_user_id,
+            "is_read": notification.is_read,
+            "action_url": notification.action_url,
+            "created_at": notification.created_at,
+            "updated_at": notification.updated_at
+        }, status=status.HTTP_200_OK)
+
+
+class MarkNotificationAsReadView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, notification_id):
+        """Mark a notification as read"""
+        user_id = getattr(request.user, 'id', None)
+        
+        notification = Notification.objects(id=notification_id, recipient_id=user_id).first()
+        if not notification:
+            return Response({"error": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        notification.is_read = 'true'
+        notification.updated_at = datetime.utcnow()
+        notification.save()
+        
+        return Response({
+            "message": "Notification marked as read",
+            "notification_id": notification_id
+        }, status=status.HTTP_200_OK)
+
+
+class MarkAllNotificationsAsReadView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Mark all notifications as read for the current user"""
+        user_id = getattr(request.user, 'id', None)
+        
+        notifications = Notification.objects(recipient_id=user_id, is_read='false')
+        count = notifications.count()
+        
+        for notification in notifications:
+            notification.is_read = 'true'
+            notification.updated_at = datetime.utcnow()
+            notification.save()
+        
+        return Response({
+            "message": f"Marked {count} notifications as read"
+        }, status=status.HTTP_200_OK)
+
+
+class DeleteNotificationView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def delete(self, request, notification_id):
+        """Delete a notification"""
+        user_id = getattr(request.user, 'id', None)
+        
+        notification = Notification.objects(id=notification_id, recipient_id=user_id).first()
+        if not notification:
+            return Response({"error": "Notification not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        notification.delete()
+        
+        return Response({
+            "message": "Notification deleted"
+        }, status=status.HTTP_204_NO_CONTENT)
+
+
+class UnreadNotificationCountView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get unread notification count"""
+        user_id = getattr(request.user, 'id', None)
+        
+        unread_count = Notification.objects(recipient_id=user_id, is_read='false').count()
+        
+        return Response({
+            "unread_count": unread_count
+        }, status=status.HTTP_200_OK)

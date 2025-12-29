@@ -40,7 +40,7 @@ export default function DriverDashboard() {
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [filterStatus, setFilterStatus] = useState('')
 
-  const statusOptions = ['Scheduled', 'Picked Up', 'In Transit', 'Out for Delivery', 'Delivered']
+  const statusOptions = ['Out for Delivery', 'Delivered', 'Cancelled']
 
   useEffect(() => {
     fetchDriverProfile()
@@ -80,7 +80,7 @@ export default function DriverDashboard() {
     try {
       const token = localStorage.getItem('access_token')
       await axios.put(
-        `/api/admin/delivery/${selectedDelivery.id}/`,
+        `/api/driver/deliveries/${selectedDelivery.id}/status/`,
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -98,7 +98,7 @@ export default function DriverDashboard() {
 
   const openStatusModal = (delivery: Delivery) => {
     setSelectedDelivery(delivery)
-    setNewStatus(delivery.status)
+    setNewStatus(statusOptions.includes(delivery.status) ? delivery.status : statusOptions[0])
   }
 
   const getStatusColor = (status: string) => {

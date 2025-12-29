@@ -50,3 +50,19 @@ class Review(Document):
     created_at = DateTimeField(default=datetime.utcnow)
 
     meta = {'collection': 'reviews'}
+
+
+class Notification(Document):
+    recipient_id = StringField(required=True)  # User receiving the notification
+    recipient_role = StringField(required=True)  # admin/user/driver
+    title = StringField(required=True)
+    message = StringField(required=True)
+    notification_type = StringField(default='info')  # info/warning/important/success
+    related_delivery_id = StringField()  # Reference to Delivery (if applicable)
+    related_user_id = StringField()  # Reference to User who triggered the notification
+    is_read = StringField(default='false')
+    action_url = StringField()  # URL to navigate to on click
+    created_at = DateTimeField(default=datetime.utcnow)
+    updated_at = DateTimeField(default=datetime.utcnow)
+
+    meta = {'collection': 'notifications', 'indexes': ['recipient_id', 'is_read', 'created_at']}
