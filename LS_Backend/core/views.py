@@ -11,7 +11,7 @@ from .serializers import (
     DeliverySerializer, DeliveryStatusUpdateSerializer,
     PaymentSerializer, ReviewSerializer, DeliveryEditSerializer,
     DeliveryCancelSerializer, DeliveryDriverAssignSerializer,
-    NotificationSerializer
+    NotificationSerializer, PriceEstimateSerializer
 )
 from .notification_utils import (
     notify_admin_on_delivery_created, notify_user_on_delivery_updated,
@@ -19,6 +19,8 @@ from .notification_utils import (
     notify_user_on_driver_assignment, notify_admin_on_delivery_delivered,
     notify_user_on_delivery_delivered
 )
+from .pricing_utils import calculate_distance, calculate_price, get_price_breakdown
+import uuid
 
 
 # Helper function to generate JWT tokens
@@ -184,6 +186,8 @@ class DeliveryListCreateView(APIView):
                 "pickup_date": d.pickup_date,
                 "delivery_date": d.delivery_date,
                 "tracking_number": d.tracking_number,
+                "distance": d.distance,
+                "price": d.price,
                 "created_at": d.created_at
             })
         return Response(data, status=status.HTTP_200_OK)
@@ -195,16 +199,40 @@ class DeliveryListCreateView(APIView):
         user = User.objects(id=user_id).first()
         data = serializer.validated_data
         tracking_number = f"LS{uuid.uuid4().hex[:10].upper()}"
+        
+        # Extract pincodes from request (frontend sends the complete address object)
+        request_data = request.data
+        pickup_pincode = request_data.get('pickup', {}).get('pincode') if isinstance(request_data.get('pickup'), dict) else None
+        delivery_pincode = request_data.get('delivery', {}).get('pincode') if isinstance(request_data.get('delivery'), dict) else None
+        
+        # Calculate distance and price based on pincodes only
+        weight = data.get('weight', 0)
+        package_type = data.get('package_type', 'Small')
+        
+        distance = None
+        if pickup_pincode and delivery_pincode:
+            distance = calculate_distance(pickup_pincode, delivery_pincode)
+        
+        if distance is None:
+            distance = 0  # Default to 0 if calculation fails
+        
+        price = calculate_price(distance, weight, package_type)
+        
+        pickup_address = data['pickup_address']
+        delivery_address = data['delivery_address']
+        
         delivery = Delivery(
             user_id=user_id,
             status='Pending',
-            pickup_address=data['pickup_address'],
-            delivery_address=data['delivery_address'],
-            weight=data.get('weight', ''),
-            package_type=data.get('package_type', ''),
+            pickup_address=pickup_address,
+            delivery_address=delivery_address,
+            weight=weight,
+            package_type=package_type,
             pickup_date=data['pickup_date'],
             delivery_date=data.get('delivery_date'),
-            tracking_number=tracking_number
+            tracking_number=tracking_number,
+            distance=distance,
+            price=price
         )
         delivery.save()
         
@@ -220,7 +248,9 @@ class DeliveryListCreateView(APIView):
                 "pickup_address": delivery.pickup_address,
                 "delivery_address": delivery.delivery_address,
                 "tracking_number": delivery.tracking_number,
-                "pickup_date": delivery.pickup_date
+                "pickup_date": delivery.pickup_date,
+                "distance": delivery.distance,
+                "price": delivery.price
             }
         }, status=status.HTTP_201_CREATED)
 
@@ -250,9 +280,90 @@ class DeliveryDetailView(APIView):
             "pickup_date": delivery.pickup_date,
             "delivery_date": delivery.delivery_date,
             "tracking_number": delivery.tracking_number,
+            "distance": delivery.distance,
+            "price": delivery.price,
             "created_at": delivery.created_at,
             "updated_at": delivery.updated_at
         }, status=status.HTTP_200_OK)
+
+
+class PriceEstimateView(APIView):
+    """Endpoint to estimate delivery price before creating a delivery"""
+    def post(self, request):
+        try:
+            print(f"\n{'='*60}")
+            print(f"[PRICE ESTIMATE] Received request data: {request.data}")
+            print(f"{'='*60}\n")
+            
+            serializer = PriceEstimateSerializer(data=request.data)
+            if not serializer.is_valid():
+                print(f"[VALIDATION ERROR] Serializer errors: {serializer.errors}")
+                error_response = {
+                    "error": "Invalid request data",
+                    "details": dict(serializer.errors)
+                }
+                print(f"[VALIDATION ERROR] Returning: {error_response}")
+                return Response(error_response, status=status.HTTP_400_BAD_REQUEST)
+            
+            data = serializer.validated_data
+            pickup_pincode = data['pickup_pincode']
+            delivery_pincode = data['delivery_pincode']
+            weight = data['weight']
+            package_type = data['package_type']
+            
+            # Optional city and state for enhanced location verification
+            pickup_city = data.get('pickup_city') or None
+            pickup_state = data.get('pickup_state') or None
+            delivery_city = data.get('delivery_city') or None
+            delivery_state = data.get('delivery_state') or None
+            
+            print(f"[PRICE ESTIMATE] Validated data:")
+            print(f"  - Pickup: {pickup_pincode}" + 
+                  (f", {pickup_city}" if pickup_city else "") + 
+                  (f", {pickup_state}" if pickup_state else ""))
+            print(f"  - Delivery: {delivery_pincode}" + 
+                  (f", {delivery_city}" if delivery_city else "") + 
+                  (f", {delivery_state}" if delivery_state else ""))
+            print(f"  - Weight: {weight}")
+            print(f"  - Package type: {package_type}")
+            
+            # Calculate distance using pincodes and optional city/state
+            print(f"[PRICE ESTIMATE] Calling calculate_distance()...")
+            distance = calculate_distance(
+                pickup_pincode, delivery_pincode,
+                pickup_city=pickup_city, pickup_state=pickup_state,
+                delivery_city=delivery_city, delivery_state=delivery_state
+            )
+            
+            print(f"[PRICE ESTIMATE] Distance result: {distance}")
+            
+            if distance is None:
+                error_response = {
+                    "error": "Unable to calculate distance. Please check the pincodes.",
+                    "pincode1": pickup_pincode,
+                    "pincode2": delivery_pincode
+                }
+                print(f"[PRICE ESTIMATE ERROR] Distance is None, returning: {error_response}")
+                return Response(error_response, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Get price breakdown
+            print(f"[PRICE ESTIMATE] Calculating price breakdown...")
+            breakdown = get_price_breakdown(distance, weight, package_type)
+            
+            print(f"[PRICE ESTIMATE] Price breakdown: {breakdown}")
+            print(f"[PRICE ESTIMATE] Returning success response\n")
+            
+            return Response(breakdown, status=status.HTTP_200_OK)
+        except Exception as e:
+            import traceback
+            print(f"\n[PRICE ESTIMATE EXCEPTION] {type(e).__name__}: {str(e)}")
+            traceback.print_exc()
+            print()
+            error_response = {
+                "error": f"Error calculating price: {str(e)}",
+                "exception_type": type(e).__name__
+            }
+            return Response(error_response, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class DeliveryEditView(APIView):
@@ -275,17 +386,52 @@ class DeliveryEditView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
+        # Track if price-affecting fields changed
+        recalculate_price = False
+        
         # Update allowed fields
         if 'pickup_address' in request.data:
             delivery.pickup_address = request.data['pickup_address']
+            recalculate_price = True
         if 'delivery_address' in request.data:
             delivery.delivery_address = request.data['delivery_address']
+            recalculate_price = True
         if 'weight' in request.data:
             delivery.weight = request.data['weight']
+            recalculate_price = True
         if 'package_type' in request.data:
             delivery.package_type = request.data['package_type']
+            recalculate_price = True
         if 'pickup_date' in serializer.validated_data:
             delivery.pickup_date = serializer.validated_data['pickup_date']
+        
+        # Recalculate price if needed
+        if recalculate_price:
+            # Extract pincodes from request
+            request_data = request.data
+            pickup_pincode = None
+            delivery_pincode = None
+            
+            if isinstance(request_data.get('pickup'), dict):
+                pickup_pincode = request_data.get('pickup', {}).get('pincode')
+            if isinstance(request_data.get('delivery'), dict):
+                delivery_pincode = request_data.get('delivery', {}).get('pincode')
+            
+            # If pincodes are available, use them for distance calculation
+            if pickup_pincode and delivery_pincode:
+                distance = calculate_distance(pickup_pincode, delivery_pincode)
+            else:
+                # Fallback: try using the stored addresses (shouldn't happen in normal flow)
+                distance = None
+            
+            if distance:
+                delivery.distance = distance
+            price = calculate_price(
+                delivery.distance or 0,
+                delivery.weight or 0,
+                delivery.package_type or 'Small'
+            )
+            delivery.price = price
         
         delivery.updated_at = datetime.utcnow()
         delivery.save()
@@ -360,6 +506,8 @@ class TrackDeliveryView(APIView):
             "delivery_address": delivery.delivery_address,
             "package_type": delivery.package_type,
             "weight": delivery.weight,
+            "distance": delivery.distance,
+            "price": delivery.price,
             "pickup_date": delivery.pickup_date,
             "delivery_date": delivery.delivery_date,
             "created_at": delivery.created_at,
@@ -369,34 +517,43 @@ class TrackDeliveryView(APIView):
 
 class TrackDeliveryByPhoneView(APIView):
     def get(self, request, phone_number):
+        # Find user by phone number
         user = User.objects(contact_number=phone_number).first()
         if not user:
             return Response({
                 "error": "No user found with this phone number"
             }, status=status.HTTP_404_NOT_FOUND)
 
-        delivery = Delivery.objects(user_id=user.id).order_by('-created_at').first()
-        if not delivery:
+        # Get all deliveries for this user
+        deliveries = Delivery.objects(user_id=str(user.id)).order_by('-created_at')
+        if not deliveries:
             return Response({
                 "error": "No deliveries found for this phone number"
             }, status=status.HTTP_404_NOT_FOUND)
 
-        driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
-        return Response({
-            "tracking_number": delivery.tracking_number,
-            "status": delivery.status,
-            "driver_id": delivery.driver_id,
-            "driver_name": driver.name if driver else None,
-            "driver_contact": driver.contact_number if driver else None,
-            "pickup_address": delivery.pickup_address,
-            "delivery_address": delivery.delivery_address,
-            "package_type": delivery.package_type,
-            "weight": delivery.weight,
-            "pickup_date": delivery.pickup_date,
-            "delivery_date": delivery.delivery_date,
-            "created_at": delivery.created_at,
-            "updated_at": delivery.updated_at
-        }, status=status.HTTP_200_OK)
+        # Build response with all deliveries
+        data = []
+        for delivery in deliveries:
+            driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
+            data.append({
+                "tracking_number": delivery.tracking_number,
+                "status": delivery.status,
+                "driver_id": delivery.driver_id,
+                "driver_name": driver.name if driver else None,
+                "driver_contact": driver.contact_number if driver else None,
+                "pickup_address": delivery.pickup_address,
+                "delivery_address": delivery.delivery_address,
+                "package_type": delivery.package_type,
+                "weight": delivery.weight,
+                "distance": delivery.distance,
+                "price": delivery.price,
+                "pickup_date": delivery.pickup_date,
+                "delivery_date": delivery.delivery_date,
+                "created_at": delivery.created_at,
+                "updated_at": delivery.updated_at
+            })
+        
+        return Response(data, status=status.HTTP_200_OK)
 
 
 # ============ REVIEWS ============

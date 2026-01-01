@@ -2,7 +2,6 @@ import axios from 'axios'
 import { Mail, MapPin, Phone, Save, User, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { COUNTRY_CODES, format10DigitPhone, isValid10DigitPhone } from '../utils/phoneFormat'
 
 interface UserProfile {
   id: string
@@ -16,7 +15,7 @@ interface UserProfile {
 export default function Profile() {
   const navigate = useNavigate()
   const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [formData, setFormData] = useState<Partial<UserProfile & { country_code: string }>>({ country_code: '+1' })
+  const [formData, setFormData] = useState<Partial<UserProfile>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
@@ -43,7 +42,8 @@ export default function Profile() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     if (name === 'contact_number') {
-      setFormData((prev) => ({ ...prev, [name]: format10DigitPhone(value) }))
+      const cleanValue = value.replace(/\D/g, '')
+      setFormData((prev) => ({ ...prev, [name]: cleanValue }))
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }))
     }
@@ -55,7 +55,7 @@ export default function Profile() {
       return
     }
 
-    if (formData.contact_number && !isValid10DigitPhone(formData.contact_number)) {
+    if (formData.contact_number && formData.contact_number.length !== 10) {
       setMessage({ type: 'error', text: 'Please enter exactly 10 digits for phone number' })
       return
     }
@@ -181,31 +181,19 @@ export default function Profile() {
               <label className="text-sm font-semibold text-textPrimary mb-2 flex items-center gap-2">
                 <Phone className="w-4 h-4 text-primary" /> Phone Number
               </label>
-              <div className="flex gap-2">
-                <select
-                  value={formData.country_code || '+1'}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, country_code: e.target.value }))}
-                  className="px-3 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white"
-                >
-                  {COUNTRY_CODES.map((cc) => (
-                    <option key={cc.code} value={cc.code}>
-                      {cc.code}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="tel"
-                  name="contact_number"
-                  value={formData.contact_number || ''}
-                  onChange={handleChange}
-                  className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  placeholder="1234567890"
-                  maxLength={10}
-                />
-              </div>
-              {formData.contact_number && !isValid10DigitPhone(formData.contact_number) && (
+              <input
+                type="tel"
+                name="contact_number"
+                value={formData.contact_number || ''}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                placeholder="1234567890"
+                maxLength={10}
+              />
+              {formData.contact_number && formData.contact_number.length !== 10 && formData.contact_number.length > 0 && (
                 <p className="text-xs text-error mt-1">Please enter exactly 10 digits</p>
               )}
+              <p className="text-xs text-textSecondary mt-1">Enter 10-digit phone number</p>
             </div>
 
             {/* Address */}

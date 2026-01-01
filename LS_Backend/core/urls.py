@@ -6,7 +6,7 @@ from .views import (
     DriverDeliveriesView, DriverDeliveryStatusUpdateView,
     TrackDeliveryView, TrackDeliveryByPhoneView, ReviewListCreateView, DeliveryReviewsView,
     NotificationsView, NotificationDetailView, MarkNotificationAsReadView, MarkAllNotificationsAsReadView,
-    DeleteNotificationView, UnreadNotificationCountView
+    DeleteNotificationView, UnreadNotificationCountView, PriceEstimateView
 )
 
 urlpatterns = [
@@ -21,6 +21,9 @@ urlpatterns = [
     path('deliveries/<str:delivery_id>/', DeliveryDetailView.as_view(), name='delivery-detail'),
     path('deliveries/<str:delivery_id>/edit/', DeliveryEditView.as_view(), name='delivery-edit'),
     path('deliveries/<str:delivery_id>/cancel/', DeliveryCancelView.as_view(), name='delivery-cancel'),
+    
+    # Price Estimation
+    path('estimate-price/', PriceEstimateView.as_view(), name='estimate-price'),
     
     # Admin
     path('admin/users/', AdminUsersView.as_view(), name='admin-users'),

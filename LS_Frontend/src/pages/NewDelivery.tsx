@@ -1,14 +1,14 @@
 import axios from 'axios'
-import { ArrowLeft, Calendar, Check, MapPin, Package, X } from 'lucide-react'
+import { ArrowLeft, Calendar, Check, IndianRupee, Loader2, MapPin, Package, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { formatPrice, PACKAGE_TYPES } from '../utils/priceFormat'
 
 interface DeliveryForm {
   pickup: AddressFields
   delivery: AddressFields
-  weight?: string
-  weight_unit: string
-  package_type?: string
+  weight: string
+  package_type: string
   pickup_date: string
 }
 
@@ -20,6 +20,17 @@ interface AddressFields {
   state: string
   pincode: string
   country: string
+}
+
+interface PriceEstimate {
+  base_rate: number
+  distance_km: number
+  distance_cost: number
+  weight_kg: number
+  weight_cost: number
+  package_type: string
+  package_surcharge: number
+  total_price: number
 }
 
 export default function NewDelivery() {
@@ -46,13 +57,14 @@ export default function NewDelivery() {
       country: '',
     },
     weight: '',
-    weight_unit: 'kg',
-    package_type: '',
+    package_type: 'Small',
     pickup_date: '',
   })
   const [msg, setMsg] = useState('')
   const [isEditing, setIsEditing] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [priceEstimate, setPriceEstimate] = useState<PriceEstimate | null>(null)
+  const [estimating, setEstimating] = useState(false)
 
   useEffect(() => {
     const state = location.state as any
@@ -72,13 +84,60 @@ export default function NewDelivery() {
       setForm({
         pickup: mapAddressFromString(delivery.pickup_address),
         delivery: mapAddressFromString(delivery.delivery_address),
-        weight: delivery.weight ? `${delivery.weight}`.split(' ')[0] : '',
-        weight_unit: delivery.weight ? `${delivery.weight}`.split(' ')[1] || 'kg' : 'kg',
-        package_type: delivery.package_type || '',
+        weight: delivery.weight ? `${delivery.weight}` : '',
+        package_type: delivery.package_type || 'Small',
         pickup_date: new Date(delivery.pickup_date).toISOString().split('T')[0],
       })
     }
   }, [location])
+
+  // Estimate price function
+  const estimatePrice = async () => {
+    const pickupPincode = form.pickup.pincode
+    const deliveryPincode = form.delivery.pincode
+    const weight = parseFloat(form.weight)
+    
+    if (!pickupPincode || !deliveryPincode || !weight || !form.package_type) {
+      setPriceEstimate(null)
+      return
+    }
+
+    setEstimating(true)
+    try {
+      const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+      const payload = {
+        pickup_pincode: pickupPincode.toString(),
+        delivery_pincode: deliveryPincode.toString(),
+        weight: weight,
+        package_type: form.package_type
+      }
+      console.log('=== PRICE ESTIMATION REQUEST ===')
+      console.log('Payload:', payload)
+      console.log('URL:', `${backendUrl}/estimate-price/`)
+      const res = await axios.post(`${backendUrl}/estimate-price/`, payload)
+      console.log('=== PRICE ESTIMATION SUCCESS ===')
+      console.log('Response:', res.data)
+      setPriceEstimate(res.data)
+    } catch (err: any) {
+      console.error('=== PRICE ESTIMATION ERROR ===')
+      console.error('Full error object:', err)
+      console.error('Error status:', err?.response?.status)
+      console.error('Error response data:', err?.response?.data)
+      console.error('Error message:', err?.message)
+      setPriceEstimate(null)
+    } finally {
+      setEstimating(false)
+    }
+  }
+
+  // Auto-estimate price when form changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      estimatePrice()
+    }, 1000) // Debounce for 1 second
+
+    return () => clearTimeout(timer)
+  }, [form.pickup, form.delivery, form.weight, form.package_type])
 
   const formatAddress = (addr: AddressFields) =>
     [addr.line1, addr.line2, addr.landmark, addr.city, addr.state, addr.pincode, addr.country]
@@ -88,6 +147,7 @@ export default function NewDelivery() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     const token = localStorage.getItem('access_token')
+    const backendUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
 
     const pickupRequired = [form.pickup.line1, form.pickup.city, form.pickup.state, form.pickup.pincode].every(Boolean)
     const deliveryRequired = [form.delivery.line1, form.delivery.city, form.delivery.state, form.delivery.pincode].every(Boolean)
@@ -101,10 +161,12 @@ export default function NewDelivery() {
 
     try {
       if (isEditing && id) {
-        const res = await axios.put(`/api/deliveries/${id}/edit/`, {
+        const res = await axios.put(`${backendUrl}/deliveries/${id}/edit/`, {
           pickup_address: formatAddress(form.pickup),
           delivery_address: formatAddress(form.delivery),
-          weight: form.weight ? `${form.weight} ${form.weight_unit}` : '',
+          pickup: form.pickup,
+          delivery: form.delivery,
+          weight: parseFloat(form.weight) || 0,
           package_type: form.package_type,
           pickup_date: new Date(form.pickup_date).toISOString(),
         }, { headers: { Authorization: `Bearer ${token}` } })
@@ -113,10 +175,12 @@ export default function NewDelivery() {
           navigate('/deliveries')
         }, 1500)
       } else {
-        const res = await axios.post('/api/deliveries/', {
+        const res = await axios.post(`${backendUrl}/deliveries/`, {
           pickup_address: formatAddress(form.pickup),
           delivery_address: formatAddress(form.delivery),
-          weight: form.weight ? `${form.weight} ${form.weight_unit}` : '',
+          pickup: form.pickup,
+          delivery: form.delivery,
+          weight: parseFloat(form.weight) || 0,
           package_type: form.package_type,
           pickup_date: new Date(form.pickup_date).toISOString(),
         }, { headers: { Authorization: `Bearer ${token}` } })
@@ -141,10 +205,10 @@ export default function NewDelivery() {
             country: '',
           },
           weight: '',
-          weight_unit: 'kg',
-          package_type: '',
+          package_type: 'Small',
           pickup_date: '',
         })
+        setPriceEstimate(null)
         setTimeout(() => {
           navigate('/deliveries')
         }, 1500)
@@ -373,58 +437,91 @@ export default function NewDelivery() {
 
             <div className="grid md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-textPrimary">Weight</label>
-                <div className="flex gap-3">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.weight}
-                    onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                    placeholder="e.g., 5.00"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  />
-                  <select
-                    value={form.weight_unit}
-                    onChange={(e) => setForm({ ...form, weight_unit: e.target.value })}
-                    className="px-3 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white"
-                  >
-                    <option value="kg">kg</option>
-                    <option value="g">g</option>
-                    <option value="lb">lb</option>
-                  </select>
-                </div>
+                <label className="text-sm font-semibold text-textPrimary">Weight (kg)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.weight}
+                  onChange={(e) => setForm({ ...form, weight: e.target.value })}
+                  placeholder="e.g., 5.0"
+                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                />
               </div>
 
               <div className="space-y-2">
-                <label className="block text-sm font-semibold text-textPrimary">Package Type</label>
+                <label className="text-sm font-semibold text-textPrimary">Package Type</label>
                 <select
                   value={form.package_type}
                   onChange={(e) => setForm({ ...form, package_type: e.target.value })}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all bg-white"
                 >
-                  <option value="">Select Type</option>
-                  <option value="Small">Small</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Large">Large</option>
-                  <option value="Fragile">Fragile</option>
-                  <option value="Electronics">Electronics</option>
+                  {PACKAGE_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-textPrimary flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  Pickup Date <span className="text-error">*</span>
+                  <IndianRupee className="w-4 h-4 text-primary" />
+                  Estimated Price
                 </label>
-                <input
-                  type="date"
-                  value={form.pickup_date}
-                  onChange={(e) => setForm({ ...form, pickup_date: e.target.value })}
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  required
-                />
+                <div className="w-full px-4 py-3 border-2 border-primary/30 rounded-xl bg-primary/5 flex items-center gap-2">
+                  {estimating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                      <span className="text-textSecondary text-sm">Calculating...</span>
+                    </>
+                  ) : priceEstimate ? (
+                    <span className="text-xl font-bold text-primary">{formatPrice(priceEstimate.total_price)}</span>
+                  ) : (
+                    <span className="text-textSecondary text-sm">Enter all details</span>
+                  )}
+                </div>
               </div>
+            </div>
+
+            {/* Price Breakdown */}
+            {priceEstimate && (
+              <div className="mt-6 p-4 bg-gradient-to-br from-primary/5 to-blue-50 border-2 border-primary/20 rounded-xl">
+                <p className="text-sm font-semibold text-textPrimary mb-3">Price Breakdown:</p>
+                <div className="grid md:grid-cols-3 gap-3 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-textSecondary">Base Rate:</span>
+                    <span className="font-semibold text-textPrimary">{formatPrice(priceEstimate.base_rate)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-textSecondary">Distance ({priceEstimate.distance_km.toFixed(2)} km):</span>
+                    <span className="font-semibold text-textPrimary">{formatPrice(priceEstimate.distance_cost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-textSecondary">Weight ({priceEstimate.weight_kg} kg):</span>
+                    <span className="font-semibold text-textPrimary">{formatPrice(priceEstimate.weight_cost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-textSecondary">{priceEstimate.package_type} Surcharge:</span>
+                    <span className="font-semibold text-textPrimary">{formatPrice(priceEstimate.package_surcharge)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Pickup Date Section */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-textPrimary flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                Pickup Date <span className="text-error">*</span>
+              </label>
+              <input
+                type="date"
+                value={form.pickup_date}
+                onChange={(e) => setForm({ ...form, pickup_date: e.target.value })}
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                required
+              />
             </div>
           </div>
 

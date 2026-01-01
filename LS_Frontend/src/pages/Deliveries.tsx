@@ -1,20 +1,23 @@
 import axios from 'axios'
-import { Edit2, Eye, MapPin, Package, Phone, Truck, X } from 'lucide-react'
+import { Edit2, Eye, IndianRupee, MapPin, Package, Phone, Truck, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DeliveryStatusTimeline from '../components/DeliveryStatusTimeline'
 import { formatDateTime } from '../utils/dateFormat'
+import { formatPrice } from '../utils/priceFormat'
 
 interface Delivery {
   id: string
   status: string
   pickup_address: string
   delivery_address: string
-  weight: string
+  weight: number
   package_type: string
   pickup_date: string
   delivery_date?: string
   tracking_number: string
+  price?: number
+  distance?: number
   driver_name?: string
   driver_contact?: string
 }
@@ -158,12 +161,21 @@ export default function Deliveries() {
                   <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-100">
                     <div>
                       <p className="text-xs text-textSecondary font-medium uppercase">Weight</p>
-                      <p className="text-base text-textPrimary font-semibold">{d.weight || 'N/A'}</p>
+                      <p className="text-base text-textPrimary font-semibold">{d.weight ? `${d.weight} kg` : 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-textSecondary font-medium uppercase">Type</p>
                       <p className="text-base text-textPrimary font-semibold">{d.package_type || 'N/A'}</p>
                     </div>
+                    {d.price && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-textSecondary font-medium uppercase flex items-center gap-1">
+                          <IndianRupee className="w-3 h-3" />
+                          Price
+                        </p>
+                        <p className="text-lg text-primary font-bold">{formatPrice(d.price)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -224,12 +236,27 @@ export default function Deliveries() {
                 </div>
                 <div>
                   <label className="text-xs text-textSecondary uppercase font-semibold">Weight</label>
-                  <p className="text-textPrimary text-base">{selectedDelivery.weight || 'N/A'}</p>
+                  <p className="text-textPrimary text-base">{selectedDelivery.weight ? `${selectedDelivery.weight} kg` : 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-xs text-textSecondary uppercase font-semibold">Type</label>
                   <p className="text-textPrimary text-base">{selectedDelivery.package_type || 'N/A'}</p>
                 </div>
+                {selectedDelivery.distance && (
+                  <div>
+                    <label className="text-xs text-textSecondary uppercase font-semibold">Distance</label>
+                    <p className="text-textPrimary text-base">{selectedDelivery.distance.toFixed(2)} km</p>
+                  </div>
+                )}
+                {selectedDelivery.price && (
+                  <div>
+                    <label className="text-xs text-textSecondary uppercase font-semibold flex items-center gap-1">
+                      <IndianRupee className="w-3 h-3" />
+                      Price
+                    </label>
+                    <p className="text-lg font-bold text-primary">{formatPrice(selectedDelivery.price)}</p>
+                  </div>
+                )}
                 <div className="col-span-2">
                   <label className="text-xs text-textSecondary uppercase font-semibold">Pickup</label>
                   <p className="text-textPrimary text-base">{selectedDelivery.pickup_address}</p>

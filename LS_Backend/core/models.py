@@ -1,4 +1,4 @@
-from mongoengine import Document, StringField, DateTimeField
+from mongoengine import Document, StringField, DateTimeField, FloatField
 from datetime import datetime
 
 class User(Document):
@@ -20,11 +20,13 @@ class Delivery(Document):
     driver_id = StringField()  # Reference to User with role=driver
     pickup_address = StringField(required=True)
     delivery_address = StringField(required=True)
-    weight = StringField()  # e.g., "5kg"
-    package_type = StringField()  # Small, Medium, Large
+    weight = FloatField()  # Weight in kg
+    package_type = StringField()  # Small, Medium, Large, Fragile, Electronics
     pickup_date = DateTimeField(required=True)
     delivery_date = DateTimeField()
     tracking_number = StringField(unique=True)
+    price = FloatField()  # Calculated price in INR
+    distance = FloatField()  # Distance in km
     created_at = DateTimeField(default=datetime.utcnow)
     updated_at = DateTimeField(default=datetime.utcnow)
 
