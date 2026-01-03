@@ -255,9 +255,8 @@ export default function Track() {
           {/* Timeline */}
           <DeliveryStatusTimeline
             currentStatus={delivery.status}
-            created_at={delivery.created_at}
-            pickup_date={delivery.pickup_date}
-            delivered_at={delivery.delivered_at}
+            pickupDate={delivery.pickup_date}
+            deliveryDate={delivery.delivered_at}
           />
         </div>
         ))}
