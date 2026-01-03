@@ -1,94 +1,68 @@
 """
-Utility functions for price calculation and distance calculation using Google Maps API
-Supports pincode-based location with optional city and state for better accuracy
+Utility functions for price calculation and distance calculation using OpenRouteService API
+Supports pincode or city/state-based location with dropdown-driven inputs for better accuracy
 """
 import requests
 from django.conf import settings
-from .pincode_database import get_pincode_coordinates, is_pincode_in_database, get_pincode_info
 import math
 
 
-def geocode_pincode(pincode, city=None, state=None):
+def geocode_pincode(pincode=None, city=None, state=None):
     """
-    Convert pincode to coordinates using multiple strategies.
-    PRIMARY: Google Maps Geocoding API (supports all Indian pincodes)
-    FALLBACK: City+State search if pincode not found
-    FALLBACK: Local database (for faster lookup of known pincodes)
-    Supports pincode + optional city and state (case-insensitive)
+    Convert location details to coordinates using city + state only.
+    PRIMARY: OpenRouteService Geocoding (city/state text search)
+    Ignores address lines and pincode for calculation purposes.
     
     Args:
-        pincode: Postal code (string)
-        city: City name (optional, case-insensitive)
-        state: State name (optional, case-insensitive)
+        pincode: Postal code (string) - ignored for distance calculation
+        city: City name (required, case-insensitive)
+        state: State name (required, case-insensitive)
     
     Returns:
         (latitude, longitude) tuple or None if geocoding fails
     """
     try:
-        pincode_str = str(pincode).strip()
-        google_api_key = settings.GOOGLE_MAPS_API_KEY
-        
-        # Build address for API - try pincode first
-        address = f"{pincode_str}"
-        if city:
-            address += f", {city}"
-        if state:
-            address += f", {state}"
-        address += ", India"
-        
-        # PRIMARY: Try Google Maps Geocoding API first (supports all Indian pincodes)
+        # Enforce city/state presence for calculation
+        if not city or not state:
+            print("[GEOCODING] Missing city/state; distance calculation requires both.")
+            return None
+
+        ors_api_key = settings.OPENROUTE_API_KEY
+
+        # Build address text using only city and state (ignore pincode and address lines)
+        city_clean = str(city).strip()
+        state_clean = str(state).strip()
+        query_text = f"{city_clean}, {state_clean}, India"
+
+        # PRIMARY: OpenRouteService Geocoding
         try:
-            url = "https://maps.googleapis.com/maps/api/geocode/json"
+            url = "https://api.openrouteservice.org/geocode/search"
             params = {
-                'address': address,
-                'key': google_api_key
+                'api_key': ors_api_key,
+                'text': query_text,
+                'boundary.country': 'IND'
             }
-            
-            print(f"[GEOCODING] Requesting coordinates from Google Maps for: {address}")
+
+            print(f"[GEOCODING] Requesting coordinates from ORS for: {query_text}")
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            print(f"[GEOCODING] Google Maps Response status: {data.get('status')}")
-            
-            if data.get('status') == 'OK' and data.get('results') and len(data['results']) > 0:
-                location = data['results'][0]['geometry']['location']
-                lat_lon = (location['lat'], location['lng'])
-                print(f"[GEOCODING] Got coordinates from Google Maps for {address}: {lat_lon}")
+            features = data.get('features', [])
+            if features:
+                coords = features[0]['geometry']['coordinates']  # [lon, lat]
+                lat_lon = (coords[1], coords[0])
+                print(f"[GEOCODING] Got coordinates from ORS for {query_text}: {lat_lon}")
                 return lat_lon
-            
-            # If pincode not found but we have city+state, try broader search
-            if city and state:
-                print(f"[GEOCODING] No results for pincode {pincode_str}, trying city+state search...")
-                city_address = f"{city}, {state}, India"
-                params['address'] = city_address
-                
-                response = requests.get(url, params=params, timeout=10)
-                response.raise_for_status()
-                data = response.json()
-                
-                if data.get('status') == 'OK' and data.get('results') and len(data['results']) > 0:
-                    location = data['results'][0]['geometry']['location']
-                    lat_lon = (location['lat'], location['lng'])
-                    print(f"[GEOCODING] Got coordinates from Google Maps for {city_address}: {lat_lon}")
-                    return lat_lon
-            
-            print(f"[GEOCODING] No results from Google Maps for: {address}")
+
+            print(f"[GEOCODING] No results from ORS for: {query_text}")
         except Exception as api_error:
-            print(f"[GEOCODING] Google Maps API request failed: {type(api_error).__name__}: {str(api_error)}")
-            print(f"[GEOCODING] Falling back to local database...")
-        
-        # FALLBACK: Try local database for known pincodes
-        fallback_coords = get_pincode_coordinates(pincode_str, city, state)
-        if fallback_coords:
-            pincode_info = get_pincode_info(pincode_str)
-            print(f"[GEOCODING] Found in database: {pincode_str}, {pincode_info['city']}, {pincode_info['state']}")
-            print(f"[GEOCODING] Coordinates: {fallback_coords}")
-            return fallback_coords
-        
-        print(f"[GEOCODING] Pincode {pincode_str} not found in Google Maps or database")
+            print(f"[GEOCODING] ORS API request failed: {type(api_error).__name__}: {str(api_error)}")
+            print(f"[GEOCODING] Falling back to database...")
+
+        print(f"[GEOCODING] Location not found in ORS: {query_text}")
         return None
-        
+
     except Exception as e:
         print(f"[GEOCODING ERROR] {pincode}, {city}, {state}: {type(e).__name__}: {str(e)}")
         import traceback
@@ -131,43 +105,33 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 def calculate_distance(pickup_pincode, delivery_pincode, pickup_city=None, pickup_state=None, 
                       delivery_city=None, delivery_state=None):
     """
-    Calculate distance between two pincodes using three-tier fallback strategy.
+    Calculate distance between two locations using city + state only.
     
     Strategy:
-    1. PRIMARY: Google Maps Directions API (real road distance for all pincodes)
-    2. FALLBACK: Haversine formula with coordinates from Google Maps geocoding
-    3. FALLBACK: Local database coordinates (for pincodes not found via API)
+    1. PRIMARY: OpenRouteService Directions API (real road distance with dropdown city/state)
+    2. FALLBACK: Haversine formula with coordinates from ORS geocoding
     
     Supports optional city and state for better location verification (case-insensitive).
     
     Args:
-        pickup_pincode: Pickup location pincode
-        delivery_pincode: Delivery location pincode
-        pickup_city: Pickup city (optional, case-insensitive)
-        pickup_state: Pickup state (optional, case-insensitive)
-        delivery_city: Delivery city (optional, case-insensitive)
-        delivery_state: Delivery state (optional, case-insensitive)
+        pickup_pincode: Pickup location pincode (ignored for calculation)
+        delivery_pincode: Delivery location pincode (ignored for calculation)
+        pickup_city: Pickup city (required, case-insensitive)
+        pickup_state: Pickup state (required, case-insensitive)
+        delivery_city: Delivery city (required, case-insensitive)
+        delivery_state: Delivery state (required, case-insensitive)
     
     Returns:
         distance in kilometers or None if calculation fails
     """
     try:
-        location_str = f"{pickup_pincode}"
-        if pickup_city:
-            location_str += f", {pickup_city}"
-        if pickup_state:
-            location_str += f", {pickup_state}"
-        location_str += f" -> {delivery_pincode}"
-        if delivery_city:
-            location_str += f", {delivery_city}"
-        if delivery_state:
-            location_str += f", {delivery_state}"
+        location_str = f"{pickup_city}, {pickup_state} -> {delivery_city}, {delivery_state}"
         
         print(f"[DISTANCE] Calculating distance: {location_str}")
         
-        # First, geocode both pincodes with optional city/state
-        pickup_coords = geocode_pincode(pickup_pincode, pickup_city, pickup_state)
-        delivery_coords = geocode_pincode(delivery_pincode, delivery_city, delivery_state)
+        # First, geocode using city/state only
+        pickup_coords = geocode_pincode(None, pickup_city, pickup_state)
+        delivery_coords = geocode_pincode(None, delivery_city, delivery_state)
         
         print(f"[DISTANCE] Pickup coords: {pickup_coords}, Delivery coords: {delivery_coords}")
         
@@ -175,35 +139,38 @@ def calculate_distance(pickup_pincode, delivery_pincode, pickup_city=None, picku
             print(f"[DISTANCE] Could not geocode one or both locations")
             return None
         
-        # Try Google Maps Directions API first
+        # Try OpenRouteService Directions API first
         try:
-            url = "https://maps.googleapis.com/maps/api/directions/json"
-            google_api_key = settings.GOOGLE_MAPS_API_KEY
-            
-            params = {
-                'origin': f"{pickup_coords[0]},{pickup_coords[1]}",
-                'destination': f"{delivery_coords[0]},{delivery_coords[1]}",
-                'mode': 'driving',
-                'key': google_api_key
+            url = "https://api.openrouteservice.org/v2/directions/driving-car"
+            headers = {
+                'Authorization': settings.OPENROUTE_API_KEY,
+                'Content-Type': 'application/json'
             }
-            
-            print(f"[DISTANCE] Requesting route from {pickup_coords} to {delivery_coords}")
-            response = requests.get(url, params=params, timeout=10)
+
+            # Note: ORS expects [lon, lat]
+            body = {
+                'coordinates': [
+                    [pickup_coords[1], pickup_coords[0]],
+                    [delivery_coords[1], delivery_coords[0]]
+                ]
+            }
+
+            print(f"[DISTANCE] Requesting ORS route from {pickup_coords} to {delivery_coords}")
+            response = requests.post(url, headers=headers, json=body, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            print(f"[DISTANCE] Google Maps Directions Response status: {data.get('status')}")
-            
-            if data.get('status') == 'OK' and data.get('routes') and len(data['routes']) > 0:
+            print(f"[DISTANCE] ORS response received")
+
+            if data.get('routes') and len(data['routes']) > 0:
                 # Distance is in meters, convert to kilometers
-                distance_m = data['routes'][0]['legs'][0]['distance']['value']
-                distance_km = distance_m / 1000
-                print(f"[DISTANCE] Calculated distance using Google Maps: {distance_km} km")
+                distance_km = data['routes'][0]['summary']['distance'] / 1000
+                print(f"[DISTANCE] Calculated distance using ORS: {distance_km} km")
                 return round(distance_km, 2)
-            
-            print(f"[DISTANCE] No routes found in Google Maps response, falling back to Haversine")
+
+            print(f"[DISTANCE] No routes found in ORS response, falling back to Haversine")
         except Exception as api_error:
-            print(f"[DISTANCE] Google Maps API request failed: {type(api_error).__name__}: {str(api_error)}")
+            print(f"[DISTANCE] ORS request failed: {type(api_error).__name__}: {str(api_error)}")
             print(f"[DISTANCE] Falling back to Haversine formula")
         
         # Fallback: Use Haversine formula with coordinates
@@ -223,9 +190,23 @@ def calculate_distance(pickup_pincode, delivery_pincode, pickup_city=None, picku
 
 def calculate_price(distance_km, weight_kg, package_type):
     """
-    Calculate delivery price based on distance, weight, and package type
+    Calculate delivery price using realistic slab-based pricing (Delhivery/Ekar model).
+    Uses distance tiers and weight slabs for more accurate pricing.
     
-    Formula: Base Rate + (Distance × Per Km Rate) + (Weight × Per Kg Rate) + Package Type Surcharge
+    Distance Slabs (in INR):
+    - 0-10 km: ₹30
+    - 10-25 km: ₹50
+    - 25-50 km: ₹70
+    - 50-100 km: ₹100
+    - 100+ km: ₹100 + ₹1.5 per additional km
+    
+    Weight Slabs (in INR):
+    - 0-1 kg: ₹0 (included in base)
+    - 1-2 kg: ₹30
+    - 2-5 kg: ₹50
+    - 5-10 kg: ₹80
+    - 10-20 kg: ₹120
+    - 20+ kg: ₹150 + ₹5 per additional kg
     
     Args:
         distance_km: Distance in kilometers
@@ -235,36 +216,85 @@ def calculate_price(distance_km, weight_kg, package_type):
     Returns:
         Calculated price in INR (float)
     """
-    base_rate = settings.PRICE_BASE_RATE
-    per_km_rate = settings.PRICE_PER_KM_RATE
-    per_kg_rate = settings.PRICE_PER_KG_RATE
+    # Base pickup + delivery charge
+    base_rate = 40
+    
+    # Distance slab pricing
+    if distance_km <= 10:
+        distance_cost = 30
+    elif distance_km <= 25:
+        distance_cost = 50
+    elif distance_km <= 50:
+        distance_cost = 70
+    elif distance_km <= 100:
+        distance_cost = 100
+    else:
+        # Above 100 km: ₹100 + ₹1.5 per additional km
+        distance_cost = 100 + ((distance_km - 100) * 1.5)
+    
+    # Weight slab pricing
+    if weight_kg <= 1:
+        weight_cost = 0  # Included in base rate
+    elif weight_kg <= 2:
+        weight_cost = 30
+    elif weight_kg <= 5:
+        weight_cost = 50
+    elif weight_kg <= 10:
+        weight_cost = 80
+    elif weight_kg <= 20:
+        weight_cost = 120
+    else:
+        # Above 20 kg: ₹150 base + ₹5 per additional kg
+        weight_cost = 150 + ((weight_kg - 20) * 5)
     
     # Get package type surcharge (default to 0 if type not found)
     surcharge = settings.PACKAGE_SURCHARGES.get(package_type, 0)
     
     # Calculate total price
-    distance_cost = distance_km * per_km_rate if distance_km else 0
-    weight_cost = weight_kg * per_kg_rate if weight_kg else 0
-    
     total_price = base_rate + distance_cost + weight_cost + surcharge
+    
+    print(f"[PRICE CALC] Distance: {distance_km}km → ₹{distance_cost}, Weight: {weight_kg}kg → ₹{weight_cost}, Base: ₹{base_rate}, Surcharge: ₹{surcharge} = Total: ₹{round(total_price, 2)}")
     
     return round(total_price, 2)
 
 
 def get_price_breakdown(distance_km, weight_kg, package_type):
     """
-    Get detailed price breakdown for transparency
+    Get detailed price breakdown using slab-based pricing for transparency
     
     Returns:
-        Dictionary with price breakdown
+        Dictionary with price breakdown components
     """
-    base_rate = settings.PRICE_BASE_RATE
-    per_km_rate = settings.PRICE_PER_KM_RATE
-    per_kg_rate = settings.PRICE_PER_KG_RATE
-    surcharge = settings.PACKAGE_SURCHARGES.get(package_type, 0)
+    # Base pickup + delivery charge
+    base_rate = 40
     
-    distance_cost = distance_km * per_km_rate if distance_km else 0
-    weight_cost = weight_kg * per_kg_rate if weight_kg else 0
+    # Distance slab pricing
+    if distance_km <= 10:
+        distance_cost = 30
+    elif distance_km <= 25:
+        distance_cost = 50
+    elif distance_km <= 50:
+        distance_cost = 70
+    elif distance_km <= 100:
+        distance_cost = 100
+    else:
+        distance_cost = 100 + ((distance_km - 100) * 1.5)
+    
+    # Weight slab pricing
+    if weight_kg <= 1:
+        weight_cost = 0
+    elif weight_kg <= 2:
+        weight_cost = 30
+    elif weight_kg <= 5:
+        weight_cost = 50
+    elif weight_kg <= 10:
+        weight_cost = 80
+    elif weight_kg <= 20:
+        weight_cost = 120
+    else:
+        weight_cost = 150 + ((weight_kg - 20) * 5)
+    
+    surcharge = settings.PACKAGE_SURCHARGES.get(package_type, 0)
     total_price = base_rate + distance_cost + weight_cost + surcharge
     
     return {

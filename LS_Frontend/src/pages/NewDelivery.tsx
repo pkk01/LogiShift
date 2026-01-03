@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ArrowLeft, Calendar, Check, IndianRupee, Loader2, MapPin, Package, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { getCitiesForState, indiaStates } from '../utils/indiaLocations'
 import { formatPrice, PACKAGE_TYPES } from '../utils/priceFormat'
 
 interface DeliveryForm {
@@ -96,7 +97,15 @@ export default function NewDelivery() {
     const pickupPincode = form.pickup.pincode
     const deliveryPincode = form.delivery.pincode
     const weight = parseFloat(form.weight)
-    
+    const { city: pickup_city, state: pickup_state } = form.pickup
+    const { city: delivery_city, state: delivery_state } = form.delivery
+
+    // Require city/state because backend distance calc uses only these
+    if (!pickup_city || !pickup_state || !delivery_city || !delivery_state) {
+      setPriceEstimate(null)
+      return
+    }
+
     if (!pickupPincode || !deliveryPincode || !weight || !form.package_type) {
       setPriceEstimate(null)
       return
@@ -108,6 +117,10 @@ export default function NewDelivery() {
       const payload = {
         pickup_pincode: pickupPincode.toString(),
         delivery_pincode: deliveryPincode.toString(),
+        pickup_city,
+        pickup_state,
+        delivery_city,
+        delivery_state,
         weight: weight,
         package_type: form.package_type
       }
@@ -317,24 +330,39 @@ export default function NewDelivery() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-textSecondary">City <span className="text-error">*</span></label>
-                    <input
-                      value={form.pickup.city}
-                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, city: e.target.value } })}
-                      placeholder="City"
-                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                    <label className="text-xs font-semibold text-textSecondary">State <span className="text-error">*</span></label>
+                    <select
+                      value={form.pickup.state}
+                      onChange={(e) => {
+                        const nextState = e.target.value
+                        setForm({
+                          ...form,
+                          pickup: { ...form.pickup, state: nextState, city: '' }
+                        })
+                      }}
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all bg-white"
                       required
-                    />
+                    >
+                      <option value="">Select State</option>
+                      {indiaStates.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-textSecondary">State <span className="text-error">*</span></label>
-                    <input
-                      value={form.pickup.state}
-                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, state: e.target.value } })}
-                      placeholder="State"
-                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all"
+                    <label className="text-xs font-semibold text-textSecondary">City <span className="text-error">*</span></label>
+                    <select
+                      value={form.pickup.city}
+                      onChange={(e) => setForm({ ...form, pickup: { ...form.pickup, city: e.target.value } })}
+                      disabled={!form.pickup.state}
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all bg-white disabled:bg-gray-100"
                       required
-                    />
+                    >
+                      <option value="">{form.pickup.state ? 'Select City' : 'Select state first'}</option>
+                      {getCitiesForState(form.pickup.state).map((city) => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs font-semibold text-textSecondary">Country</label>
@@ -393,24 +421,39 @@ export default function NewDelivery() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-textSecondary">City <span className="text-error">*</span></label>
-                    <input
-                      value={form.delivery.city}
-                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, city: e.target.value } })}
-                      placeholder="City"
-                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                    <label className="text-xs font-semibold text-textSecondary">State <span className="text-error">*</span></label>
+                    <select
+                      value={form.delivery.state}
+                      onChange={(e) => {
+                        const nextState = e.target.value
+                        setForm({
+                          ...form,
+                          delivery: { ...form.delivery, state: nextState, city: '' }
+                        })
+                      }}
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all bg-white"
                       required
-                    />
+                    >
+                      <option value="">Select State</option>
+                      {indiaStates.map((st) => (
+                        <option key={st} value={st}>{st}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-textSecondary">State <span className="text-error">*</span></label>
-                    <input
-                      value={form.delivery.state}
-                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, state: e.target.value } })}
-                      placeholder="State"
-                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all"
+                    <label className="text-xs font-semibold text-textSecondary">City <span className="text-error">*</span></label>
+                    <select
+                      value={form.delivery.city}
+                      onChange={(e) => setForm({ ...form, delivery: { ...form.delivery, city: e.target.value } })}
+                      disabled={!form.delivery.state}
+                      className="w-full px-5 py-4 text-base border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-error focus:border-transparent transition-all bg-white disabled:bg-gray-100"
                       required
-                    />
+                    >
+                      <option value="">{form.delivery.state ? 'Select City' : 'Select state first'}</option>
+                      {getCitiesForState(form.delivery.state).map((city) => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <label className="text-xs font-semibold text-textSecondary">Country</label>

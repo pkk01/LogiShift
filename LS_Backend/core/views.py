@@ -200,18 +200,20 @@ class DeliveryListCreateView(APIView):
         data = serializer.validated_data
         tracking_number = f"LS{uuid.uuid4().hex[:10].upper()}"
         
-        # Extract pincodes from request (frontend sends the complete address object)
+        # Extract city/state (dropdowns) for distance calculation; ignore address lines/pincodes for distance
         request_data = request.data
-        pickup_pincode = request_data.get('pickup', {}).get('pincode') if isinstance(request_data.get('pickup'), dict) else None
-        delivery_pincode = request_data.get('delivery', {}).get('pincode') if isinstance(request_data.get('delivery'), dict) else None
-        
-        # Calculate distance and price based on pincodes only
+        pickup_city = request_data.get('pickup', {}).get('city') if isinstance(request_data.get('pickup'), dict) else None
+        pickup_state = request_data.get('pickup', {}).get('state') if isinstance(request_data.get('pickup'), dict) else None
+        delivery_city = request_data.get('delivery', {}).get('city') if isinstance(request_data.get('delivery'), dict) else None
+        delivery_state = request_data.get('delivery', {}).get('state') if isinstance(request_data.get('delivery'), dict) else None
+
+        # Calculate distance and price based on city/state only
         weight = data.get('weight', 0)
         package_type = data.get('package_type', 'Small')
         
         distance = None
-        if pickup_pincode and delivery_pincode:
-            distance = calculate_distance(pickup_pincode, delivery_pincode)
+        if pickup_city and pickup_state and delivery_city and delivery_state:
+            distance = calculate_distance(None, None, pickup_city, pickup_state, delivery_city, delivery_state)
         
         if distance is None:
             distance = 0  # Default to 0 if calculation fails
@@ -339,9 +341,11 @@ class PriceEstimateView(APIView):
             
             if distance is None:
                 error_response = {
-                    "error": "Unable to calculate distance. Please check the pincodes.",
-                    "pincode1": pickup_pincode,
-                    "pincode2": delivery_pincode
+                    "error": "Unable to calculate distance. Please check the city/state selections.",
+                    "pickup_city": pickup_city,
+                    "pickup_state": pickup_state,
+                    "delivery_city": delivery_city,
+                    "delivery_state": delivery_state
                 }
                 print(f"[PRICE ESTIMATE ERROR] Distance is None, returning: {error_response}")
                 return Response(error_response, status=status.HTTP_400_BAD_REQUEST)

@@ -92,7 +92,10 @@ SIMPLE_JWT = {
 
 STATIC_URL = 'static/'
 
-# Google Maps API Configuration
+# OpenRouteService API Configuration (primary for distance/geocoding)
+OPENROUTE_API_KEY = os.getenv('OPENROUTE_API_KEY', '')
+
+# Google Maps API Configuration (optional fallback)
 GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', '')
 
 # Pricing Configuration

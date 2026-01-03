@@ -101,10 +101,10 @@ class PriceEstimateSerializer(serializers.Serializer):
     weight = serializers.FloatField(required=True, min_value=0.1)
     package_type = serializers.CharField(required=True, min_length=1)
     
-    # Optional fields for enhanced location verification (case-insensitive)
-    pickup_city = serializers.CharField(required=False, allow_blank=True)
-    pickup_state = serializers.CharField(required=False, allow_blank=True)
-    delivery_city = serializers.CharField(required=False, allow_blank=True)
-    delivery_state = serializers.CharField(required=False, allow_blank=True)
+    # Required city/state (dropdown-driven) for distance calculation
+    pickup_city = serializers.CharField(required=True, min_length=1)
+    pickup_state = serializers.CharField(required=True, min_length=1)
+    delivery_city = serializers.CharField(required=True, min_length=1)
+    delivery_state = serializers.CharField(required=True, min_length=1)
 
 
