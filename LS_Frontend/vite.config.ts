@@ -3,7 +3,6 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/LogiShift/',
   server: {
     port: 3000,
     proxy: {

@@ -1,4 +1,4 @@
-import { Github, Linkedin } from 'lucide-react'
+import { Code2, Github, Linkedin } from 'lucide-react'
 
 export default function Footer() {
   return (
@@ -8,7 +8,10 @@ export default function Footer() {
         <p className="text-sm text-textSecondary justify-self-start">© {new Date().getFullYear()} LogiShift. All rights reserved.</p>
 
         {/* Center: developer credit */}
-        <p className="text-sm text-textPrimary justify-self-center">Developed by <span className="font-bold">Pratham Kumar</span></p>
+        <div className="text-sm text-textPrimary justify-self-center flex items-center gap-2 justify-center">
+          <Code2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="leading-tight">Designed & Built by <span className="font-bold">Pratham Kumar</span></span>
+        </div>
 
         {/* Right: icons only */}
         <div className="flex items-center gap-3 justify-self-end">

@@ -23,41 +23,23 @@ interface Delivery {
   created_at: string
 }
 
-interface DriverProfile {
-  id: string
-  name: string
-  email: string
-  contact_number: string
-  address: string
-}
-
 export default function DriverDashboard() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([])
-  const [driver, setDriver] = useState<DriverProfile | null>(null)
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
   const [newStatus, setNewStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [filterStatus, setFilterStatus] = useState('')
 
+  const isBrowser = typeof window !== 'undefined'
+  const cachedName = isBrowser ? localStorage.getItem('user_name') : null
+  const displayName = cachedName || 'Driver'
+
   const statusOptions = ['Out for Delivery', 'Delivered', 'Cancelled']
 
   useEffect(() => {
-    fetchDriverProfile()
     fetchAssignedDeliveries()
   }, [])
-
-  const fetchDriverProfile = async () => {
-    try {
-      const token = localStorage.getItem('access_token')
-      const response = await axios.get('/api/profile/', {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      setDriver(response.data)
-    } catch (err) {
-      console.error('Failed to fetch driver profile:', err)
-    }
-  }
 
   const fetchAssignedDeliveries = async () => {
     try {
@@ -144,26 +126,13 @@ export default function DriverDashboard() {
               </div>
               <div>
                 <p className="text-blue-100 text-base">Welcome back,</p>
-                <h1 className="text-4xl font-bold">Hi, {driver?.name || 'Driver'}! 👋</h1>
+                <h1 className="text-4xl font-bold">Hi, {displayName}!</h1>
               </div>
             </div>
-            <p className="text-blue-100 text-base mt-3">{driver?.email}</p>
-            {driver?.contact_number && (
-              <div className="flex items-center gap-2 text-blue-100 text-base mt-1">
-                <Phone className="w-4 h-4" />
-                <span>{driver.contact_number}</span>
-              </div>
-            )}
-            {driver?.address && (
-              <p className="text-blue-100 text-base mt-1">📍 {driver.address}</p>
-            )}
+            <p className="text-blue-100 text-sm mt-1">Driver workspace · streamlined for speed</p>
           </div>
           <div className="text-right hidden sm:block">
-            <p className="text-blue-100 text-sm mb-1">Your Contact</p>
-            <p className="text-lg font-semibold flex items-center gap-2 justify-end">
-              <Phone className="w-5 h-5" />
-              {driver?.contact_number || 'N/A'}
-            </p>
+            <p className="text-blue-100 text-sm">Status: signed in</p>
           </div>
         </div>
       </div>
@@ -296,11 +265,15 @@ export default function DriverDashboard() {
                 </div>
 
                 {/* Customer Contact */}
-                <div className="flex items-center gap-3 p-3 bg-green-50 rounded-xl border border-green-200">
-                  <Phone className="w-5 h-5 text-green-600 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs text-textSecondary font-semibold uppercase">Customer Contact</p>
-                    <p className="text-sm font-semibold text-green-700">{d.user_email}</p>
+                <div className="space-y-2 p-3 bg-green-50 rounded-xl border border-green-200">
+                  <p className="text-xs text-textSecondary font-semibold uppercase">Customer Details</p>
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-green-700">{d.user_name}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-green-600 flex-shrink-0" />
+                    <p className="text-sm font-semibold text-green-700">{d.user_contact}</p>
                   </div>
                 </div>
 

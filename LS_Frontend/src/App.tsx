@@ -3,6 +3,7 @@ import Footer from './components/Footer'
 import Navbar from './components/Navbar'
 import Dashboard from './pages/Dashboard'
 import Deliveries from './pages/Deliveries'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import NewDelivery from './pages/NewDelivery'
 import OrderHistory from './pages/OrderHistory'
@@ -28,7 +29,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/" element={<Landing />} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
           <Route path="/deliveries" element={<RequireAuth><Deliveries /></RequireAuth>} />

@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null)
   const role = localStorage.getItem('role')
+  const cachedName = localStorage.getItem('user_name')
+  const displayName = profile?.name || cachedName || 'LogiShift member'
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -25,9 +27,27 @@ export default function Dashboard() {
               <Shield className="w-9 h-9 text-white" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold mb-1">System Overview</h1>
-              <p className="text-slate-300 text-base">Monitor and manage your logistics platform</p>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-amber-100 text-xs font-semibold uppercase tracking-wide mb-2">
+                Admin workspace
+              </div>
+              <h1 className="text-4xl font-bold mb-1">Hello, {displayName}</h1>
+              <p className="text-slate-300 text-base">Orchestrate users, drivers, and deliveries from one command center.</p>
             </div>
+          </div>
+          <div className="relative grid sm:grid-cols-3 gap-3 mt-6">
+            {["Users", "Deliveries", "Assignments"].map((label, idx) => (
+              <div key={label} className="flex items-center gap-3 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 px-4 py-3 shadow-lg">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${idx === 0 ? 'bg-amber-500/20' : idx === 1 ? 'bg-blue-500/20' : 'bg-emerald-500/20'}`}>
+                  {idx === 0 && <Users className="w-5 h-5 text-white" />}
+                  {idx === 1 && <Package className="w-5 h-5 text-white" />}
+                  {idx === 2 && <Truck className="w-5 h-5 text-white" />}
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-200">{label}</p>
+                  <p className="text-sm text-white/80">Live overview</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -67,7 +87,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-slate-900">Users</h3>
-                <p className="text-sm text-slate-500">125 Active</p>
+                <p className="text-sm text-slate-500">Directories, roles, access</p>
               </div>
             </div>
             <div className="text-xs text-slate-400">Manage user accounts</div>
@@ -79,7 +99,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-slate-900">Deliveries</h3>
-                <p className="text-sm text-slate-500">All Shipments</p>
+                <p className="text-sm text-slate-500">Pipeline, SLAs, triage</p>
               </div>
             </div>
             <div className="text-xs text-slate-400">Track all orders</div>
@@ -91,12 +111,30 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-slate-900">Settings</h3>
-                <p className="text-sm text-slate-500">Preferences</p>
+                <p className="text-sm text-slate-500">Policy & configuration</p>
               </div>
             </div>
             <div className="text-xs text-slate-400">System configuration</div>
           </a>
         </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+              <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Today&apos;s focus</p>
+              <ul className="space-y-2 text-sm text-slate-600">
+                <li>• Review stuck deliveries and escalate assignments.</li>
+                <li>• Approve new drivers and validate documents.</li>
+                <li>• Monitor unread notifications from users.</li>
+              </ul>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-amber-50 to-orange-100 p-5 shadow-md">
+              <p className="text-xs font-semibold text-amber-700 uppercase mb-2">Shortcuts</p>
+              <div className="flex flex-wrap gap-2 text-sm font-semibold text-amber-800">
+                <a className="px-3 py-2 rounded-lg bg-white/60 hover:bg-white" href="/admin/deliveries">View board</a>
+                <a className="px-3 py-2 rounded-lg bg-white/60 hover:bg-white" href="/admin/users">Invite user</a>
+                <a className="px-3 py-2 rounded-lg bg-white/60 hover:bg-white" href="/profile">Account</a>
+              </div>
+            </div>
+          </div>
       </div>
     )
   }
@@ -112,11 +150,29 @@ export default function Dashboard() {
             <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center border-2 border-white/30">
               <Truck className="w-9 h-9" />
             </div>
-            <div>
-              <h1 className="text-4xl font-bold mb-1">Today's Routes</h1>
-              <p className="text-emerald-100 text-base">Your delivery schedule and assignments</p>
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-emerald-100 text-xs font-semibold uppercase tracking-wide mb-2">
+                  Driver workspace
+                </div>
+                <h1 className="text-4xl font-bold mb-1">Hi, {displayName}</h1>
+                <p className="text-emerald-100 text-base">Stay on top of routes, status updates, and proof of delivery.</p>
             </div>
           </div>
+            <div className="relative grid sm:grid-cols-3 gap-3 mt-6">
+              {["Assigned", "In-progress", "Delivered"].map((label, idx) => (
+                <div key={label} className="flex items-center gap-3 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 px-4 py-3 shadow-lg">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${idx === 0 ? 'bg-emerald-500/20' : idx === 1 ? 'bg-teal-500/20' : 'bg-white/20'}`}>
+                    {idx === 0 && <Package className="w-5 h-5 text-white" />}
+                    {idx === 1 && <MapPin className="w-5 h-5 text-white" />}
+                    {idx === 2 && <Truck className="w-5 h-5 text-white" />}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-emerald-50">{label}</p>
+                    <p className="text-sm text-white/80">Live board</p>
+                  </div>
+                </div>
+              ))}
+            </div>
         </div>
 
         {/* Driver Welcome Card */}
@@ -155,7 +211,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-slate-900">Deliveries</h3>
-                <p className="text-sm text-slate-500">8 Pending</p>
+                <p className="text-sm text-slate-500">Assignments & proofs</p>
               </div>
             </div>
             <div className="text-xs text-slate-400">View assigned orders</div>
@@ -167,7 +223,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-slate-900">Navigation</h3>
-                <p className="text-sm text-slate-500">Track Route</p>
+                <p className="text-sm text-slate-500">Best route view</p>
               </div>
             </div>
             <div className="text-xs text-slate-400">GPS tracking</div>
@@ -179,11 +235,29 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-bold text-lg text-slate-900">Profile</h3>
-                <p className="text-sm text-slate-500">My Account</p>
+                <p className="text-sm text-slate-500">Docs & payout info</p>
               </div>
             </div>
             <div className="text-xs text-slate-400">Update details</div>
           </a>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Today&apos;s checklist</p>
+            <ul className="space-y-2 text-sm text-slate-600">
+              <li>• Confirm pickups and mark status promptly.</li>
+              <li>• Share delivery notes in the status update modal.</li>
+              <li>• Keep contact details current for dispatch.</li>
+            </ul>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-emerald-50 to-green-100 p-5 shadow-md">
+            <p className="text-xs font-semibold text-emerald-700 uppercase mb-2">Shortcuts</p>
+            <div className="flex flex-wrap gap-2 text-sm font-semibold text-emerald-800">
+              <a className="px-3 py-2 rounded-lg bg-white/70 hover:bg-white" href="/driver/dashboard">My board</a>
+              <a className="px-3 py-2 rounded-lg bg-white/70 hover:bg-white" href="/track">Track</a>
+              <a className="px-3 py-2 rounded-lg bg-white/70 hover:bg-white" href="/profile">Profile</a>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -200,9 +274,27 @@ export default function Dashboard() {
             <Package className="w-9 h-9" />
           </div>
           <div>
-            <h1 className="text-4xl font-bold mb-1">My Shipments</h1>
-            <p className="text-blue-100 text-base">Track and manage your delivery orders</p>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-indigo-100 text-xs font-semibold uppercase tracking-wide mb-2">
+              Customer workspace
+            </div>
+            <h1 className="text-4xl font-bold mb-1">Hi, {displayName}</h1>
+            <p className="text-blue-100 text-base">Create, monitor, and track every shipment with clarity.</p>
           </div>
+        </div>
+        <div className="relative grid sm:grid-cols-3 gap-3 mt-6">
+          {["New shipment", "Active", "Delivered"].map((label, idx) => (
+            <div key={label} className="flex items-center gap-3 bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 px-4 py-3 shadow-lg">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${idx === 0 ? 'bg-white/20' : idx === 1 ? 'bg-indigo-500/30' : 'bg-blue-500/30'}`}>
+                {idx === 0 && <Package className="w-5 h-5 text-white" />}
+                {idx === 1 && <TrendingUp className="w-5 h-5 text-white" />}
+                {idx === 2 && <Truck className="w-5 h-5 text-white" />}
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-indigo-50">{label}</p>
+                <p className="text-sm text-white/80">Quick access</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -260,7 +352,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h3 className="font-bold text-lg text-slate-900">My Orders</h3>
-              <p className="text-sm text-slate-500">Active Shipments</p>
+                <p className="text-sm text-slate-500">Active & history</p>
             </div>
           </div>
           <div className="text-xs text-slate-400">View all deliveries</div>
@@ -272,11 +364,29 @@ export default function Dashboard() {
             </div>
             <div>
               <h3 className="font-bold text-lg text-slate-900">Track</h3>
-              <p className="text-sm text-slate-500">Live Tracking</p>
+                <p className="text-sm text-slate-500">Live & public links</p>
             </div>
           </div>
           <div className="text-xs text-slate-400">Real-time updates</div>
         </a>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-md">
+          <p className="text-xs font-semibold text-slate-500 uppercase mb-2">Helpful tips</p>
+          <ul className="space-y-2 text-sm text-slate-600">
+            <li>• Use "New Order" to book in under a minute.</li>
+            <li>• Check "My Orders" for live statuses and ETAs.</li>
+            <li>• Share tracking links from the Track page with recipients.</li>
+          </ul>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-blue-50 to-indigo-100 p-5 shadow-md">
+          <p className="text-xs font-semibold text-indigo-700 uppercase mb-2">Shortcuts</p>
+          <div className="flex flex-wrap gap-2 text-sm font-semibold text-indigo-800">
+            <a className="px-3 py-2 rounded-lg bg-white/70 hover:bg-white" href="/new-delivery">Create</a>
+            <a className="px-3 py-2 rounded-lg bg-white/70 hover:bg-white" href="/deliveries">Orders</a>
+            <a className="px-3 py-2 rounded-lg bg-white/70 hover:bg-white" href="/track">Track</a>
+          </div>
+        </div>
       </div>
     </div>
   )

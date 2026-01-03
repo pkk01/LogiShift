@@ -16,6 +16,7 @@ export default function Login() {
       localStorage.setItem('refresh_token', res.data.tokens.refresh)
       localStorage.setItem('role', res.data.user.role)
       localStorage.setItem('user_id', res.data.user.id)
+      localStorage.setItem('user_name', res.data.user.name || '')
       window.location.href = '/'
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Login failed')
