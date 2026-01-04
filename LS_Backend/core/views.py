@@ -19,6 +19,10 @@ from .notification_utils import (
     notify_user_on_driver_assignment, notify_admin_on_delivery_delivered,
     notify_user_on_delivery_delivered
 )
+from .email_utils import (
+    send_booking_confirmation_email, send_status_update_email,
+    send_driver_assigned_email
+)
 from .pricing_utils import calculate_distance, calculate_price, get_price_breakdown
 import uuid
 
@@ -241,6 +245,43 @@ class DeliveryListCreateView(APIView):
         # Send notification to admin
         if user:
             notify_admin_on_delivery_created(user_id, str(delivery.id), user.name)
+        
+        # Send booking confirmation email to user
+        if user and user.email:
+            try:
+                print(f"\n{'='*60}")
+                print(f"[EMAIL] Attempting to send booking confirmation email")
+                print(f"[EMAIL] To: {user.email}")
+                print(f"[EMAIL] User: {user.name}")
+                print(f"[EMAIL] Tracking: {tracking_number}")
+                print(f"{'='*60}\n")
+                
+                send_booking_confirmation_email(
+                    user_email=user.email,
+                    user_name=user.name,
+                    delivery_data={
+                        'tracking_number': tracking_number,
+                        'pickup_address': pickup_address,
+                        'delivery_address': delivery_address,
+                        'package_type': package_type,
+                        'weight': weight,
+                        'distance': distance,
+                        'pickup_date': data['pickup_date'].strftime('%d %B %Y') if data.get('pickup_date') else 'N/A',
+                        'price': price
+                    }
+                )
+                print(f"\n[EMAIL] ✅ Booking confirmation email sent successfully!\n")
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"\n[EMAIL] ❌ Failed to send booking confirmation email: {str(e)}")
+                import traceback
+                traceback.print_exc()
+                print()
+        else:
+            if not user:
+                print(f"\n[EMAIL] ⚠️  No user found - cannot send email\n")
+            elif not user.email:
+                print(f"\n[EMAIL] ⚠️  User {user.name} has no email address\n")
         
         return Response({
             "message": "Delivery created successfully",
@@ -758,21 +799,45 @@ class AdminDeliveryUpdateView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        old_status = delivery.status
         delivery.status = serializer.validated_data['status']
         delivery.updated_at = datetime.utcnow()
         if delivery.status == 'Delivered' and not delivery.delivery_date:
             delivery.delivery_date = datetime.utcnow()
         delivery.save()
         
+        # Get user and driver info for email
+        user = User.objects(id=delivery.user_id).first()
+        driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
+        
         # Send notification to user about status update
         notify_user_on_delivery_updated(delivery.user_id, str(delivery.id), delivery.status)
         
         # Send notification to admin and user if delivered
         if delivery.status == 'Delivered':
-            driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
             driver_name = driver.name if driver else 'Driver'
             notify_admin_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
             notify_user_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
+        
+        # Send status update email to user
+        if user and user.email:
+            try:
+                send_status_update_email(
+                    user_email=user.email,
+                    user_name=user.name,
+                    delivery_data={
+                        'tracking_number': delivery.tracking_number,
+                        'pickup_address': delivery.pickup_address,
+                        'delivery_address': delivery.delivery_address,
+                        'driver_name': driver.name if driver else None,
+                        'driver_contact': driver.contact_number if driver else None
+                    },
+                    old_status=old_status,
+                    new_status=delivery.status
+                )
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"Failed to send status update email: {str(e)}")
 
         return Response({
             "message": "Delivery status updated successfully",
@@ -816,6 +881,25 @@ class AdminDeliveryAssignDriverView(APIView):
         user_name = user.name if user else "User"
         notify_driver_on_assignment(driver_id, str(delivery.id), user_name)
         notify_user_on_driver_assignment(delivery.user_id, str(delivery.id), driver.name)
+        
+        # Send driver assignment email to user
+        if user and user.email:
+            try:
+                send_driver_assigned_email(
+                    user_email=user.email,
+                    user_name=user.name,
+                    delivery_data={
+                        'tracking_number': delivery.tracking_number,
+                        'pickup_address': delivery.pickup_address,
+                        'delivery_address': delivery.delivery_address,
+                        'pickup_date': delivery.pickup_date.strftime('%d %B %Y') if delivery.pickup_date else 'N/A'
+                    },
+                    driver_name=driver.name,
+                    driver_contact=driver.contact_number
+                )
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"Failed to send driver assignment email: {str(e)}")
 
         return Response({
             "message": "Driver assigned successfully",
@@ -892,19 +976,43 @@ class DriverDeliveryStatusUpdateView(APIView):
         if new_status not in self.ALLOWED_STATUSES:
             return Response({"error": "Invalid status for driver"}, status=status.HTTP_400_BAD_REQUEST)
 
+        old_status = delivery.status
         delivery.status = new_status
         if new_status == 'Delivered' and not delivery.delivery_date:
             delivery.delivery_date = datetime.utcnow()
         delivery.updated_at = datetime.utcnow()
         delivery.save()
 
+        # Get user and driver info for email
+        user = User.objects(id=delivery.user_id).first()
+        driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
+        
         # Notify user and admin as needed
         notify_user_on_delivery_updated(delivery.user_id, str(delivery.id), delivery.status)
         if delivery.status == 'Delivered':
-            driver = User.objects(id=delivery.driver_id).first() if delivery.driver_id else None
             driver_name = driver.name if driver else 'Driver'
             notify_admin_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
             notify_user_on_delivery_delivered(delivery.user_id, str(delivery.id), driver_name)
+        
+        # Send status update email to user
+        if user and user.email:
+            try:
+                send_status_update_email(
+                    user_email=user.email,
+                    user_name=user.name,
+                    delivery_data={
+                        'tracking_number': delivery.tracking_number,
+                        'pickup_address': delivery.pickup_address,
+                        'delivery_address': delivery.delivery_address,
+                        'driver_name': driver.name if driver else None,
+                        'driver_contact': driver.contact_number if driver else None
+                    },
+                    old_status=old_status,
+                    new_status=delivery.status
+                )
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"Failed to send status update email: {str(e)}")
 
         return Response({
             "message": "Delivery status updated successfully",

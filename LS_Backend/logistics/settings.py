@@ -118,3 +118,16 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels.layers.InMemoryChannelLayer",
     }
 }
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'prathamdowork@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'xrvx ifxb weco tfva')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'LogiShift <prathamdowork@gmail.com>')
+EMAIL_SUBJECT_PREFIX = '[LogiShift] '
+
+# Frontend URL Configuration
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
