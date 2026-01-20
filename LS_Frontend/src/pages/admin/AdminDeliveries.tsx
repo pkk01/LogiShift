@@ -2,6 +2,7 @@ import axios from 'axios'
 import { Calendar, Edit2, MapPin, Package, Truck, User, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import DeliveryStatusTimeline from '../../components/DeliveryStatusTimeline'
+import { apiUrl } from '../../utils/apiBase'
 import { formatDate } from '../../utils/dateFormat'
 
 interface Driver {
@@ -46,14 +47,14 @@ export default function AdminDeliveries() {
 
   const fetchDeliveries = () => {
     const token = localStorage.getItem('access_token')
-    axios.get('/api/admin/deliveries/', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(apiUrl('/admin/deliveries/'), { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setItems(res.data))
       .catch(err => console.error(err))
   }
 
   const fetchDrivers = () => {
     const token = localStorage.getItem('access_token')
-    axios.get('/api/admin/users/', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(apiUrl('/admin/users/'), { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         const driverList = res.data.filter((u: any) => u.role === 'driver')
         setDrivers(driverList)
@@ -73,7 +74,7 @@ export default function AdminDeliveries() {
     try {
       const token = localStorage.getItem('access_token')
       await axios.put(
-        `/api/admin/delivery/${selectedDelivery.id}/`,
+        apiUrl(`/admin/delivery/${selectedDelivery.id}/`),
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       )
@@ -96,7 +97,7 @@ export default function AdminDeliveries() {
     try {
       const token = localStorage.getItem('access_token')
       await axios.post(
-        `/api/admin/delivery/${selectedDelivery.id}/assign-driver/`,
+        apiUrl(`/admin/delivery/${selectedDelivery.id}/assign-driver/`),
         { driver_id: selectedDriver },
         { headers: { Authorization: `Bearer ${token}` } }
       )

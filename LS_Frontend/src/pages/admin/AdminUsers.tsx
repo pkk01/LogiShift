@@ -2,6 +2,7 @@ import axios from 'axios'
 import { Edit, Mail, Phone, Search, Shield, User, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiUrl } from '../../utils/apiBase'
 
 export default function AdminUsers() {
   const navigate = useNavigate()
@@ -11,7 +12,7 @@ export default function AdminUsers() {
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
-    axios.get('/api/admin/users/', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(apiUrl('/admin/users/'), { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setItems(res.data))
   }, [])
 

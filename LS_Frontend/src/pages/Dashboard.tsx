@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { Mail, MapPin, Package, Phone, Settings, Shield, TrendingUp, Truck, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { apiUrl } from '../utils/apiBase'
 
 export default function Dashboard() {
   const [profile, setProfile] = useState<any>(null)
@@ -10,7 +11,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
-    axios.get('/api/profile/', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(apiUrl('/profile/'), { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setProfile(res.data))
       .catch(() => setProfile(null))
   }, [])

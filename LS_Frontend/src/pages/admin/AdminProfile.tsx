@@ -2,6 +2,7 @@ import axios from 'axios'
 import { ChevronLeft, Mail, MapPin, Phone, Save, Shield, User, Users, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { apiUrl } from '../../utils/apiBase'
 import { COUNTRY_CODES, format10DigitPhone, isValid10DigitPhone } from '../../utils/phoneFormat'
 
 interface UserProfile {
@@ -29,7 +30,7 @@ export default function AdminProfile() {
   const fetchUser = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const res = await axios.get(`/api/admin/users/${userId}/`, {
+      const res = await axios.get(apiUrl(`/admin/users/${userId}/`), {
         headers: { Authorization: `Bearer ${token}` },
       })
       setUser(res.data)
@@ -67,7 +68,7 @@ export default function AdminProfile() {
     try {
       const token = localStorage.getItem('access_token')
       await axios.put(
-        `/api/admin/users/${userId}/`,
+        apiUrl(`/admin/users/${userId}/`),
         {
           name: formData.name,
           email: formData.email,

@@ -3,6 +3,7 @@ import { ArrowLeft, Edit2, Eye, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DeliveryStatusTimeline from '../components/DeliveryStatusTimeline';
+import { apiUrl } from '../utils/apiBase';
 import { formatDateTime } from '../utils/dateFormat';
 
 interface Delivery {
@@ -37,7 +38,7 @@ const OrderHistory: React.FC = () => {
   const fetchDeliveries = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await axios.get('/api/deliveries/', {
+      const response = await axios.get(apiUrl('/deliveries/'), {
         headers: { Authorization: `Bearer ${token}` },
       });
       setDeliveries(response.data);
@@ -79,7 +80,7 @@ const OrderHistory: React.FC = () => {
 
     try {
       const token = localStorage.getItem('access_token');
-      await axios.post(`/api/deliveries/${deliveryId}/cancel/`, {}, {
+      await axios.post(apiUrl(`/deliveries/${deliveryId}/cancel/`), {}, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchDeliveries();

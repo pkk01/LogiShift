@@ -3,6 +3,7 @@ import { Edit2, Eye, IndianRupee, MapPin, Package, Phone, Truck, X } from 'lucid
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DeliveryStatusTimeline from '../components/DeliveryStatusTimeline'
+import { apiUrl } from '../utils/apiBase'
 import { formatDateTime } from '../utils/dateFormat'
 import { formatPrice } from '../utils/priceFormat'
 
@@ -30,7 +31,7 @@ export default function Deliveries() {
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
-    axios.get('/api/deliveries/', { headers: { Authorization: `Bearer ${token}` } })
+    axios.get(apiUrl('/deliveries/'), { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         setItems(res.data)
         setLoading(false)
@@ -50,7 +51,7 @@ export default function Deliveries() {
 
     try {
       const token = localStorage.getItem('access_token')
-      await axios.post(`/api/deliveries/${deliveryId}/cancel/`, {}, {
+      await axios.post(apiUrl(`/deliveries/${deliveryId}/cancel/`), {}, {
         headers: { Authorization: `Bearer ${token}` },
       })
       setItems(items.filter(d => d.id !== deliveryId))

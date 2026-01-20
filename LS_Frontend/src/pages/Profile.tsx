@@ -2,6 +2,7 @@ import axios from 'axios'
 import { Mail, MapPin, Phone, Save, User, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiUrl } from '../utils/apiBase'
 
 interface UserProfile {
   id: string
@@ -27,7 +28,7 @@ export default function Profile() {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const res = await axios.get('/api/profile/', {
+      const res = await axios.get(apiUrl('/profile/'), {
         headers: { Authorization: `Bearer ${token}` },
       })
       setProfile(res.data)
@@ -66,7 +67,7 @@ export default function Profile() {
     try {
       const token = localStorage.getItem('access_token')
       await axios.put(
-        `/api/profile/`,
+        apiUrl('/profile/'),
         {
           name: formData.name,
           email: formData.email,

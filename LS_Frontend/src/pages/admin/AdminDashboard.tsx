@@ -2,6 +2,7 @@ import axios from 'axios'
 import { BarChart3, Boxes, MessageSquare, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { apiUrl } from '../../utils/apiBase'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -20,9 +21,9 @@ export default function AdminDashboard() {
         const headers = { Authorization: `Bearer ${token}` }
 
         const [usersRes, deliveriesRes, ticketsRes] = await Promise.all([
-          axios.get('/api/admin/users/', { headers }),
-          axios.get('/api/admin/deliveries/', { headers }),
-          axios.get('/api/admin/support/tickets/', { headers })
+          axios.get(apiUrl('/admin/users/'), { headers }),
+          axios.get(apiUrl('/admin/deliveries/'), { headers }),
+          axios.get(apiUrl('/admin/support/tickets/'), { headers })
         ])
 
         const users = usersRes.data

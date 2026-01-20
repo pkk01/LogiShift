@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { Phone, UserPlus } from 'lucide-react'
 import { useState } from 'react'
+import { apiUrl } from '../utils/apiBase'
 
 export default function Register() {
   const [form, setForm] = useState({ 
@@ -24,7 +25,7 @@ export default function Register() {
     }
     
     try {
-      await axios.post('/api/register/', {
+      await axios.post(apiUrl('/register/'), {
         email: form.email,
         password: form.password,
         name: form.name,

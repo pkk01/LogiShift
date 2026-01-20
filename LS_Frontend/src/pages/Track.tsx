@@ -2,6 +2,7 @@ import axios from 'axios'
 import { CheckCircle2, IndianRupee, MapPin, Package, Phone, Search, Truck, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import DeliveryStatusTimeline from '../components/DeliveryStatusTimeline'
+import { apiUrl } from '../utils/apiBase'
 import { formatPrice } from '../utils/priceFormat'
 
 export default function Track() {
@@ -25,7 +26,7 @@ export default function Track() {
           setLoading(false)
           return
         }
-        res = await axios.get(`/api/track/${tracking}/`)
+        res = await axios.get(apiUrl(`/track/${tracking}/`))
       } else {
         const cleanPhone = phone.replace(/\D/g, '')
         if (cleanPhone.length !== 10) {
@@ -33,7 +34,7 @@ export default function Track() {
           setLoading(false)
           return
         }
-        res = await axios.get(`/api/track-by-phone/${cleanPhone}/`)
+        res = await axios.get(apiUrl(`/track-by-phone/${cleanPhone}/`))
       }
       setData(res.data)
     } catch (err: any) {

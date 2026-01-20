@@ -2,6 +2,7 @@ import axios from 'axios'
 import { Calendar, CheckCircle, MapPin, Package, Phone, Truck, User, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import DeliveryStatusTimeline from '../../components/DeliveryStatusTimeline'
+import { apiUrl } from '../../utils/apiBase'
 import { formatDate } from '../../utils/dateFormat'
 
 interface Delivery {
@@ -44,7 +45,7 @@ export default function DriverDashboard() {
   const fetchAssignedDeliveries = async () => {
     try {
       const token = localStorage.getItem('access_token')
-      const response = await axios.get('/api/driver/deliveries/', {
+      const response = await axios.get(apiUrl('/driver/deliveries/'), {
         headers: { Authorization: `Bearer ${token}` },
       })
       setDeliveries(response.data)
@@ -62,7 +63,7 @@ export default function DriverDashboard() {
     try {
       const token = localStorage.getItem('access_token')
       await axios.put(
-        `/api/driver/deliveries/${selectedDelivery.id}/status/`,
+        apiUrl(`/driver/deliveries/${selectedDelivery.id}/status/`),
         { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       )

@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { LogIn } from 'lucide-react'
 import { useState } from 'react'
+import { apiUrl } from '../utils/apiBase'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -11,7 +12,7 @@ export default function Login() {
     e.preventDefault()
     setError('')
     try {
-      const res = await axios.post('/api/login/', { email, password })
+      const res = await axios.post(apiUrl('/login/'), { email, password })
       localStorage.setItem('access_token', res.data.tokens.access)
       localStorage.setItem('refresh_token', res.data.tokens.refresh)
       localStorage.setItem('role', res.data.user.role)
