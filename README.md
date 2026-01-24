@@ -488,9 +488,9 @@ python manage.py flush
 
 For issues, feature requests, or feedback:
 
-- Open an [Issue](https://github.com/your-repo/issues)
-- Submit a [Pull Request](https://github.com/your-repo/pulls)
-- Contact: [your-email@example.com]
+- Open an [Issue](https://github.com/pkk01/LogiShift/issues)
+- Submit a [Pull Request](https://github.com/pkk01/LogiShift/pulls)
+- Contact: [prk61dlw@gmail.com]
 
 ## 📄 License
 
